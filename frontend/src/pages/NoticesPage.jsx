@@ -8,8 +8,10 @@ import { useLang } from "@/context/LangContext";
 const REACTIONS = ["👍", "❤️", "🙏", "🎉", "😂"];
 
 function timeAgo(dateStr) {
+  if (!dateStr) return "";
+  const parsedStr = dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
   const now = new Date();
-  const d = new Date(dateStr);
+  const d = new Date(parsedStr);
   const diff = Math.floor((now - d) / 1000);
   if (diff < 60) return "just now";
   if (diff < 3600) return Math.floor(diff / 60) + "m ago";
@@ -214,7 +216,7 @@ function shareToWhatsApp(notice) {
   text += `*${notice.title}*\n\n`;
   text += `${notice.body}\n\n`;
   text += `— ${notice.postedByName || "Admin"}\n`;
-  text += `Date: ${new Date(notice.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}`;
+  text += `Date: ${new Date(notice.createdAt.endsWith('Z') ? notice.createdAt : notice.createdAt + 'Z').toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}\n\n`;
 
   const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
   window.open(url, "_blank");
