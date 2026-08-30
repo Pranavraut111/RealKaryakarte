@@ -1,7 +1,7 @@
 <div align="center">
   <img src="frontend/public/logo.png" alt="Mandal Ledger Logo" width="120" />
   <h1>Mandal Ledger (Real Karyakarte)</h1>
-  <p>A modern, transparent, and responsive ledger application built specifically for Ganpati Mandals and Societies.</p>
+  <p>A modern, transparent, and robust ledger application built specifically for Ganpati Mandals, Societies, and Community Organizations.</p>
 
   ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
   ![Vite](https://img.shields.io/badge/Vite-5.0+-646CFF?logo=vite&logoColor=white)
@@ -10,61 +10,126 @@
   ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?logo=postgresql&logoColor=white)
 </div>
 
-Say goodbye to paper receipts and mismatched Excel sheets. Bring complete transparency to your Mandal's accounts, straight from your phone!
+---
 
-## ✨ Features
+## 📖 Overview
 
-- **Live Dashboard**: Get real-time insights into total collected funds, spent amounts, and current balance in hand.
-- **Digital Receipts**: Instantly generate professional PDF receipts and share them directly via WhatsApp.
-- **Room & Floor Tracking**: Automatically track which rooms/floors have paid and who is pending.
-- **Expense Management**: Log every rupee spent for complete transparency.
-- **Community Notice Board**: Keep all karyakartas updated with announcements and discussions.
-- **Role-Based Access**: Secure login system with distinct privileges for Admins and Karyakartas.
-- **Responsive Design**: Beautiful, modern UI that works flawlessly on mobile devices and desktops.
+Managing community funds, vargani (contributions), and daily expenses during festivals or for housing societies is traditionally a chaotic process involving paper receipts, scattered WhatsApp messages, and mismatched Excel sheets. 
+
+**Mandal Ledger** digitizes and streamlines this entire process. It empowers organizations to maintain a flawless, live digital ledger that is accessible and verifiable by every authorized member directly from their smartphones. By bringing complete transparency to financial operations, it builds trust and accountability within the community.
+
+## ✨ Comprehensive Features
+
+### 💰 Vargani & Contribution Tracking
+- **Live Ledger**: Instantly view total collected funds, current cash in hand, and outstanding balances.
+- **Advanced Room & Floor Mapping**: Track contributions by building, floor, and room number. Supports complex structures like multiple families renting a single room, plus separate "Owner" tracking for shared spaces.
+- **Automated Sync**: When a contribution is logged, the respective room's status is automatically updated in the tracker.
+
+### 📄 Digital Receipts & Sharing
+- **Instant PDF Generation**: Generate professional, dynamic PDF receipts upon every transaction using OpenPDF.
+- **WhatsApp Integration**: Share generated receipts instantly with contributors via WhatsApp with pre-formatted messages and clickable links.
+- **Public Receipt Access**: Secure, tokenless public endpoints allow external users to view their receipts effortlessly.
+
+### 📊 Expense Management & Analytics
+- **Audit Trails**: Log every rupee spent with mandatory notes and categorizations.
+- **Real-Time Deductions**: Expenses are immediately reflected against the total collected vargani to display accurate "Cash in Hand".
+- **Downloadable Reports**: Export financial summaries and room statuses for offline analysis and auditing.
+
+### 📢 Community Notice Board
+- **Real-Time Communication**: Keep all Karyakartas (workers/volunteers) updated with important announcements.
+- **Interactive Discussions**: Nested replies and reaction support allow for seamless internal coordination.
+
+### 🔐 Role-Based Access Control
+- **Admins**: Full access to financial overriding, bulk room creation, and system configurations.
+- **Karyakartas (Volunteers)**: Restricted access tailored for logging contributions and viewing notices without exposing sensitive administrative controls.
+
+## 🛠️ Architecture & Tech Stack
+
+The application is structured as a decoupled SPA (Single Page Application) with a robust RESTful API backend.
+
+### Frontend
+- **React.js**: Modular UI component architecture.
+- **Vite**: Ultra-fast hot-module replacement and optimized production builds.
+- **Tailwind CSS**: Custom, utility-first styling for a beautiful, premium, and fully responsive user interface.
+- **React Router**: Seamless client-side navigation.
+- **Lucide React**: Clean, modern iconography.
 
 ### Backend
-- **Java (Jakarta EE)**: Robust servlet-based REST API
-- **OpenPDF**: Dynamic PDF generation for digital receipts
-- **HikariCP**: High-performance JDBC connection pooling
-- **Maven**: Dependency management and build automation
+- **Java (Jakarta EE)**: High-performance, scalable servlet-based REST API without heavy framework overhead.
+- **OpenPDF**: Dynamic and performant PDF generation for digital receipts.
+- **HikariCP**: Lightning-fast JDBC connection pooling for optimal database performance.
+- **Maven**: Standardized dependency management and build automation.
 
 ### Database
-- **PostgreSQL**: Reliable, relational database for robust data integrity
+- **PostgreSQL**: Robust, relational database ensuring ACID compliance and strict data integrity for all financial records.
 
 ## 🚀 Getting Started
 
+Follow these steps to run the project locally.
+
 ### Prerequisites
-- Node.js & npm
-- Java 17+
-- Maven
-- PostgreSQL
+- Node.js (v18+) & npm
+- Java (JDK 17+)
+- Maven (v3.8+)
+- PostgreSQL (v15+)
 
-### Setup Instructions
+### 1. Database Setup
+1. Open your PostgreSQL terminal/UI and create the database and user:
+   ```sql
+   CREATE DATABASE ganpati_mandal;
+   CREATE USER mandal_app WITH PASSWORD 'changeme';
+   GRANT ALL PRIVILEGES ON DATABASE ganpati_mandal TO mandal_app;
+   ```
+2. Navigate to `backend/src/main/resources/db/` and execute `setup_postgres.sql` and the migration scripts to initialize the schema.
 
-1. **Database Setup**
-   - Run the provided `setup_postgres.sql` and migration scripts in `backend/src/main/resources/db/` to initialize your database.
-   - Configure your environment variables for `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`.
+### 2. Backend Initialization
+The backend relies on environment variables for sensitive configurations, adhering to the 12-Factor App methodology.
 
-2. **Backend Development**
+1. Navigate to the backend directory:
    ```bash
    cd backend
+   ```
+2. Build and run the server using Cargo:
+   ```bash
    mvn clean package cargo:run
    ```
-   *The backend server will start on port 8080.*
+   *The backend will be available at `http://localhost:8080/api/`.*
 
-3. **Frontend Development**
+### 3. Frontend Initialization
+1. Navigate to the frontend directory:
    ```bash
    cd frontend
+   ```
+2. Install dependencies and start the development server:
+   ```bash
    npm install
    npm run dev
    ```
-   *The frontend app will be accessible at http://localhost:5173.*
+   *The application will be accessible at `http://localhost:5173/`.*
 
-## 🔒 Environment & Configuration
+## 🔒 Environment Variables Reference
 
-This project is built to follow the 12-Factor App methodology. All sensitive credentials and storage directories are configurable via environment variables, ensuring zero credential leakage in the source code.
+For production deployments, configure the following environment variables on your server. If left unset, the application will safely fall back to local development defaults.
+
+| Variable | Description | Default (Local Dev) |
+|----------|-------------|---------------------|
+| `DB_URL` | PostgreSQL connection string | `jdbc:postgresql://localhost:5432/ganpati_mandal` |
+| `DB_USERNAME` | Database username | `mandal_app` |
+| `DB_PASSWORD` | Database password | `changeme` |
+| `JWT_SECRET` | Base64 encoded 256-bit key for secure tokens | *Provided in application.properties* |
+| `STORAGE_BASE_DIR` | Absolute path for saving uploaded files and generated PDFs | `user.home + /mandal_data` |
+
+## 🤝 Contributing
+
+We welcome contributions to make Mandal Ledger even better!
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. Open a Pull Request.
 
 ## 👨‍💻 Developed By
 
 **Pranav Raut**  
-📧 [praut1086@gmail.com](mailto:praut1086@gmail.com)
+📧 [praut1086@gmail.com](mailto:praut1086@gmail.com)  
+*Designed with ❤️ for Community Transparency*
