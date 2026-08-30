@@ -645,10 +645,10 @@ export default function NoticesPage() {
                       {n.photoUrl && (
                         <div className="mt-3 rounded-2xl overflow-hidden">
                           <img
-                            src={n.photoUrl}
+                            src={(import.meta.env.VITE_API_BASE || "") + n.photoUrl}
                             alt={n.title}
                             className="w-full max-h-80 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                            onClick={() => window.open(n.photoUrl, "_blank")}
+                            onClick={() => window.open((import.meta.env.VITE_API_BASE || "") + n.photoUrl, "_blank")}
                           />
                         </div>
                       )}

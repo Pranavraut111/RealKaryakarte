@@ -113,7 +113,7 @@ export default function ExpensesPage() {
                         <div className="mt-2">
                           <p className="text-muted-foreground text-xs uppercase tracking-wider mb-2">Receipt / Item Photo</p>
                           <img 
-                            src={e.receiptPhotoUrl} 
+                            src={(import.meta.env.VITE_API_BASE || "") + e.receiptPhotoUrl} 
                             alt="Receipt" 
                             className="w-full rounded-2xl border border-white/10 object-contain max-h-[350px] bg-foreground/5" 
                           />
