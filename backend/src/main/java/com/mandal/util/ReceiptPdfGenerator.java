@@ -1,7 +1,6 @@
 package com.mandal.util;
 
 import com.lowagie.text.Document;
-import com.lowagie.text.DocumentException;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
 import com.lowagie.text.Paragraph;
@@ -9,17 +8,10 @@ import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-
 /**
  * PDF generator for contribution receipts using OpenPDF.
  */
 public class ReceiptPdfGenerator {
-
-    private static final String RECEIPTS_DIR = com.mandal.util.ConfigUtil.get("storage.base.dir", 
-            System.getProperty("user.home") + "/mandal_data") + "/receipts/";
 
     /**
      * Generate a receipt PDF for a contribution.
