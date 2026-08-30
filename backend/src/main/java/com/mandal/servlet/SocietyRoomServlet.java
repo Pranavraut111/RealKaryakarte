@@ -79,6 +79,7 @@ public class SocietyRoomServlet extends HttpServlet {
 
             // POST /api/rooms/bulk
             if (pathInfo != null && pathInfo.equals("/bulk")) {
+                @SuppressWarnings("unchecked")
                 Map<String, Object> body = JsonUtil.readBody(req, Map.class);
                 int roomStart = ((Number) body.get("roomStart")).intValue();
                 int roomEnd = ((Number) body.get("roomEnd")).intValue();
@@ -127,6 +128,7 @@ public class SocietyRoomServlet extends HttpServlet {
                 String idStr = pathInfo.substring(1, pathInfo.lastIndexOf("/status"));
                 Long id = Long.parseLong(idStr);
 
+                @SuppressWarnings("unchecked")
                 Map<String, Object> body = JsonUtil.readBody(req, Map.class);
                 String status = (String) body.get("status");
                 BigDecimal amountPaid = body.get("amountPaid") != null
