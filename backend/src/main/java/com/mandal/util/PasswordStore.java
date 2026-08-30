@@ -8,12 +8,20 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
+/**
+ * File-based password hash store.
+ * Stores hashed passwords in a JSON file on disk (never plaintext).
+ * Path is configurable via ConfigUtil ("storage.base.dir") or defaults to ~/mandal_data.
+ */
 public class PasswordStore {
-    private static final String FILE_PATH = "/Users/pranavraut/RealKaryakarte/backend/passwords.json";
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final ConcurrentHashMap<Long, String> passwords = new ConcurrentHashMap<>();
+    private static final String FILE_PATH;
 
     static {
+        String baseDir = ConfigUtil.get("storage.base.dir",
+                System.getProperty("user.home") + "/mandal_data");
+        FILE_PATH = baseDir + "/passwords.json";
         load();
     }
 
@@ -31,7 +39,9 @@ public class PasswordStore {
 
     private static void save() {
         try {
-            mapper.writeValue(new File(FILE_PATH), passwords);
+            File file = new File(FILE_PATH);
+            file.getParentFile().mkdirs(); // ensure directory exists
+            mapper.writeValue(file, passwords);
         } catch (IOException e) {
             e.printStackTrace();
         }

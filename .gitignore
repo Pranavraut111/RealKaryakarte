@@ -57,3 +57,8 @@ Icon
 backend/target/
 frontend/dist/
 frontend/node_modules/
+
+# Sensitive data — never commit
+passwords.json
+backend/receipts/
+*.pdf
