@@ -394,8 +394,7 @@ function ReceiptSheet({ c, onClose }) {
                   alert("Receipt PDF not found. Please re-generate or check older records.");
                   return;
                 }
-                const host = import.meta.env.VITE_API_BASE || "";
-                const text = `*Contribution Receipt: ${c.receiptNo}*\nReceived from: ${c.memberName}\nAmount: ${inr(c.amount)}\n\nThank you for your contribution!\n\nDownload Receipt: ${host}${c.receiptPdfUrl}`;
+                const text = `*Contribution Receipt: ${c.receiptNo}*\nReceived from: ${c.memberName}\nAmount: ${inr(c.amount)}\n\nThank you for your contribution!\n\nDownload Receipt: ${api.getMediaUrl(c.receiptPdfUrl)}`;
                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
               }}
             >

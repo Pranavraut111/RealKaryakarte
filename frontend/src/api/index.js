@@ -249,9 +249,15 @@ export async function downloadReport(from, to) {
   window.URL.revokeObjectURL(url);
 }
 
-export async function downloadReceipt(urlPath) {
+export function getMediaUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
   const host = import.meta.env.VITE_API_BASE || "";
-  const fullUrl = urlPath.startsWith("/api") ? host + urlPath : BASE + urlPath;
+  return url.startsWith("/api") ? host + url : BASE + url;
+}
+
+export async function downloadReceipt(urlPath) {
+  const fullUrl = getMediaUrl(urlPath);
   const res = await fetch(fullUrl, {
     headers: { ...authHeaders() },
   });

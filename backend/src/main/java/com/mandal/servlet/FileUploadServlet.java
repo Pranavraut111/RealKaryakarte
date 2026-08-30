@@ -33,13 +33,6 @@ public class FileUploadServlet extends HttpServlet {
             return;
         }
 
-        // We will store uploads in a persistent dir outside of target/ if possible
-        // To make it simple for this project, let's use a fixed directory:
-        String uploadFilePath = com.mandal.util.ConfigUtil.get("storage.base.dir", 
-                System.getProperty("user.home") + "/mandal_data") + "/uploads";
-        File f = new File(uploadFilePath);
-        if (!f.exists()) f.mkdirs();
-
         try {
             Part filePart = request.getPart("file");
             if (filePart == null) {
@@ -60,10 +53,15 @@ public class FileUploadServlet extends HttpServlet {
             }
 
             String newFileName = UUID.randomUUID().toString() + extension;
-            filePart.write(uploadFilePath + File.separator + newFileName);
+            String contentType = filePart.getContentType();
+            if (contentType == null || contentType.isEmpty()) contentType = "application/octet-stream";
 
-            // Serve through /api/uploads/
-            String fileUrl = "/api/uploads/" + newFileName;
+            String fileUrl = com.mandal.service.SupabaseStorageService.uploadFile(newFileName, filePart.getInputStream(), contentType);
+            
+            if (fileUrl == null) {
+                JsonUtil.writeError(response, 500, "Failed to upload to Supabase");
+                return;
+            }
             
             JsonUtil.writeOk(response, ApiResponse.ok("File uploaded successfully", fileUrl));
 

@@ -37,17 +37,12 @@ public class ReceiptPdfGenerator {
             String roomNumber,
             Integer floorNumber
     ) {
-        File dir = new File(RECEIPTS_DIR);
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-
-        String fileName = receiptNo + ".pdf";
-        String filePath = RECEIPTS_DIR + fileName;
+        String fileName = receiptNo + "-" + System.currentTimeMillis() + ".pdf";
 
         Document document = new Document(com.lowagie.text.PageSize.A5.rotate(), 36, 36, 36, 36);
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
         try {
-            PdfWriter.getInstance(document, new FileOutputStream(filePath));
+            PdfWriter.getInstance(document, baos);
             document.open();
 
             // Header Table for Logo and Title
@@ -152,11 +147,13 @@ public class ReceiptPdfGenerator {
             document.add(footerTable);
 
             document.close();
-            System.out.println("[ReceiptPdfGenerator] Generated PDF: " + filePath);
             
-            return "/api/receipts/" + fileName;
+            String publicUrl = com.mandal.service.SupabaseStorageService.uploadFile(fileName, baos.toByteArray(), "application/pdf");
+            System.out.println("[ReceiptPdfGenerator] Uploaded PDF to Supabase: " + publicUrl);
+            
+            return publicUrl;
 
-        } catch (DocumentException | IOException e) {
+        } catch (Exception e) {
             System.err.println("[ReceiptPdfGenerator] Error generating PDF: " + e.getMessage());
             e.printStackTrace();
             return null;
