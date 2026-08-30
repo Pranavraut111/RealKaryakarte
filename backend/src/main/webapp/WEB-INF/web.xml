@@ -16,14 +16,16 @@
     <request-character-encoding>UTF-8</request-character-encoding>
     <response-character-encoding>UTF-8</response-character-encoding>
 
-    <!-- Error pages -->
-    <error-page>
-        <error-code>404</error-code>
-        <location>/api/error/404</location>
-    </error-page>
-    <error-page>
-        <error-code>500</error-code>
-        <location>/api/error/500</location>
-    </error-page>
+    <!-- Explicitly register CORS filter first to ensure it runs on ALL responses including errors -->
+    <filter>
+        <filter-name>CorsFilter</filter-name>
+        <filter-class>com.mandal.filter.CorsFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>CorsFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>
 
 </web-app>
