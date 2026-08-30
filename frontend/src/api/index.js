@@ -250,7 +250,9 @@ export async function downloadReport(from, to) {
 }
 
 export async function downloadReceipt(urlPath) {
-  const res = await fetch(urlPath, {
+  const host = import.meta.env.VITE_API_BASE || "";
+  const fullUrl = urlPath.startsWith("/api") ? host + urlPath : BASE + urlPath;
+  const res = await fetch(fullUrl, {
     headers: { ...authHeaders() },
   });
   
