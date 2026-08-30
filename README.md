@@ -1,6 +1,14 @@
-# 🕉️ Mandal Ledger (Real Karyakarte)
+<div align="center">
+  <img src="frontend/public/logo.png" alt="Mandal Ledger Logo" width="120" />
+  <h1>Mandal Ledger (Real Karyakarte)</h1>
+  <p>A modern, transparent, and responsive ledger application built specifically for Ganpati Mandals and Societies.</p>
 
-A modern, transparent, and responsive ledger application built specifically for Ganpati Mandals and Societies to track vargani (contributions), manage expenses, and maintain live digital records. 
+  ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+  ![Vite](https://img.shields.io/badge/Vite-5.0+-646CFF?logo=vite&logoColor=white)
+  ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38B2AC?logo=tailwind-css&logoColor=white)
+  ![Java](https://img.shields.io/badge/Java-17+-ED8B00?logo=openjdk&logoColor=white)
+  ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?logo=postgresql&logoColor=white)
+</div>
 
 Say goodbye to paper receipts and mismatched Excel sheets. Bring complete transparency to your Mandal's accounts, straight from your phone!
 
@@ -13,15 +21,6 @@ Say goodbye to paper receipts and mismatched Excel sheets. Bring complete transp
 - **Community Notice Board**: Keep all karyakartas updated with announcements and discussions.
 - **Role-Based Access**: Secure login system with distinct privileges for Admins and Karyakartas.
 - **Responsive Design**: Beautiful, modern UI that works flawlessly on mobile devices and desktops.
-
-## 🛠️ Tech Stack
-
-### Frontend
-- **React.js**: UI component library
-- **Vite**: Ultra-fast build tool and development server
-- **Tailwind CSS**: Utility-first styling for modern, responsive designs
-- **React Router**: Client-side routing
-- **Lucide React**: Beautiful, consistent iconography
 
 ### Backend
 - **Java (Jakarta EE)**: Robust servlet-based REST API
