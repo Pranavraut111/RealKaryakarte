@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/public/logo.png" alt="Mandal Ledger Logo" width="120" />
+  <img src="frontend/public/logo2.png" alt="Mandal Ledger Logo" width="120" />
   <h1>Mandal Ledger (Real Karyakarte)</h1>
   <p>A modern, transparent, and robust ledger application built specifically for Ganpati Mandals, Societies, and Community Organizations.</p>
 
