@@ -45,7 +45,7 @@ export function AppShell({ title, subtitle, mandalName: propMandalName, children
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4">
-        <div className="glass mx-auto flex max-w-xl items-stretch justify-between rounded-3xl p-1.5">
+        <div className="bg-background/95 dark:bg-background/95 backdrop-blur-2xl border border-border/50 shadow-lg mx-auto flex max-w-xl items-stretch justify-between rounded-3xl p-1.5">
           {tabs.map(({ to, label, icon: Icon }) => {
             const active = pathname === to;
             return (
