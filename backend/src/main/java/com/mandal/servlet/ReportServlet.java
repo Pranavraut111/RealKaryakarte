@@ -46,14 +46,21 @@ public class ReportServlet extends HttpServlet {
             Long mandalId = (Long) req.getAttribute("mandalId");
 
             try (Workbook workbook = new XSSFWorkbook()) {
-                Sheet contribSheet = workbook.createSheet("Contributions");
-                createContributionsSheet(workbook, contribSheet, mandalId);
+                // Create data sheets first to compute totals
+                Sheet contribSheet = workbook.createSheet("वर्गणी (Contributions)");
+                double totalVargani = createContributionsSheet(workbook, contribSheet, mandalId);
 
-                Sheet expenseSheet = workbook.createSheet("Expenses");
-                createExpensesSheet(workbook, expenseSheet, mandalId);
+                Sheet expenseSheet = workbook.createSheet("खर्च (Expenses)");
+                double totalKharch = createExpensesSheet(workbook, expenseSheet, mandalId);
 
                 Sheet roomSheet = workbook.createSheet("Room Tracker");
-                createRoomTrackerSheet(workbook, roomSheet, mandalId);
+                double[] roomTotals = createRoomTrackerSheet(workbook, roomSheet, mandalId);
+                // roomTotals = [ownerCollected, renterCollected]
+
+                // Create summary sheet FIRST (move to index 0)
+                Sheet summarySheet = workbook.createSheet("जमा खर्च");
+                workbook.setSheetOrder("जमा खर्च", 0);
+                createSummarySheet(workbook, summarySheet, totalVargani, totalKharch, roomTotals[0], roomTotals[1]);
 
                 workbook.write(resp.getOutputStream());
             }
@@ -64,7 +71,7 @@ public class ReportServlet extends HttpServlet {
         }
     }
 
-    private void createContributionsSheet(Workbook workbook, Sheet sheet, Long mandalId) throws SQLException {
+    private double createContributionsSheet(Workbook workbook, Sheet sheet, Long mandalId) throws SQLException {
         List<Contribution> contributions = contributionDao.findAll(mandalId, null, null, null, null);
         java.util.Collections.reverse(contributions);
 
@@ -77,13 +84,14 @@ public class ReportServlet extends HttpServlet {
         CellStyle evenCurrencyStyle = createCurrencyStyle(workbook, true);
 
         Row headerRow = sheet.createRow(0);
-        String[] headers = {"ID", "Receipt No", "Member Name", "Amount (₹)", "Date", "Payment Method", "Collected By"};
+        String[] headers = {"अ.क्र.", "पावती क्र.", "नाव", "रक्कम (₹)", "दिनांक", "पेमेंट माध्यम", "जमा करणारे"};
         for (int i = 0; i < headers.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(headers[i]);
             cell.setCellStyle(headerStyle);
         }
 
+        double total = 0;
         int rowNum = 1;
         for (Contribution c : contributions) {
             boolean isEven = (rowNum % 2 == 0);
@@ -94,7 +102,7 @@ public class ReportServlet extends HttpServlet {
 
             Cell idCell = row.createCell(0);
             idCell.setCellValue(c.getId());
-            idCell.setCellStyle(headerStyle); // ID column gets header style
+            idCell.setCellStyle(headerStyle);
 
             Cell rCell = row.createCell(1);
             rCell.setCellValue(c.getReceiptNo());
@@ -105,8 +113,10 @@ public class ReportServlet extends HttpServlet {
             if (isEven) mCell.setCellStyle(currentStyle);
             
             Cell amtCell = row.createCell(3);
-            amtCell.setCellValue(c.getAmount().doubleValue());
+            double amt = c.getAmount().doubleValue();
+            amtCell.setCellValue(amt);
             amtCell.setCellStyle(currentCurrencyStyle);
+            total += amt;
             
             Cell dateCell = row.createCell(4);
             if (c.getContributionDate() != null) {
@@ -117,7 +127,8 @@ public class ReportServlet extends HttpServlet {
             }
             
             Cell pCell = row.createCell(5);
-            pCell.setCellValue(c.getPaymentMethod() != null ? c.getPaymentMethod().name() : "");
+            String pm = c.getPaymentMethod() != null ? c.getPaymentMethod().name() : "";
+            pCell.setCellValue("CASH".equals(pm) ? "रोख" : "UPI".equals(pm) ? "UPI" : "BANK_TRANSFER".equals(pm) ? "बँक ट्रान्सफर" : pm);
             if (isEven) pCell.setCellStyle(currentStyle);
 
             Cell cbCell = row.createCell(6);
@@ -125,12 +136,24 @@ public class ReportServlet extends HttpServlet {
             if (isEven) cbCell.setCellStyle(currentStyle);
         }
 
+        // Total row
+        CellStyle totalStyle = createTotalStyle(workbook);
+        CellStyle totalCurrencyStyle = createTotalCurrencyStyle(workbook);
+        Row totalRow = sheet.createRow(rowNum + 1);
+        Cell tLabel = totalRow.createCell(2);
+        tLabel.setCellValue("एकूण वर्गणी");
+        tLabel.setCellStyle(totalStyle);
+        Cell tVal = totalRow.createCell(3);
+        tVal.setCellValue(total);
+        tVal.setCellStyle(totalCurrencyStyle);
+
         for (int i = 0; i < headers.length; i++) {
             sheet.autoSizeColumn(i);
         }
+        return total;
     }
 
-    private void createExpensesSheet(Workbook workbook, Sheet sheet, Long mandalId) throws SQLException {
+    private double createExpensesSheet(Workbook workbook, Sheet sheet, Long mandalId) throws SQLException {
         List<Expense> expenses = expenseDao.findAll(mandalId);
         java.util.Collections.reverse(expenses);
 
@@ -143,13 +166,14 @@ public class ReportServlet extends HttpServlet {
         CellStyle evenCurrencyStyle = createCurrencyStyle(workbook, true);
 
         Row headerRow = sheet.createRow(0);
-        String[] headers = {"ID", "Item Name", "Amount (₹)", "Date", "Purchased By"};
+        String[] headers = {"अ.क्र.", "वस्तूचे नाव", "रक्कम (₹)", "दिनांक", "खरेदी करणारे"};
         for (int i = 0; i < headers.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(headers[i]);
             cell.setCellStyle(headerStyle);
         }
 
+        double total = 0;
         int rowNum = 1;
         for (Expense e : expenses) {
             boolean isEven = (rowNum % 2 == 0);
@@ -160,15 +184,17 @@ public class ReportServlet extends HttpServlet {
 
             Cell idCell = row.createCell(0);
             idCell.setCellValue(e.getId());
-            idCell.setCellStyle(headerStyle); // ID column gets header style
+            idCell.setCellStyle(headerStyle);
 
             Cell iCell = row.createCell(1);
             iCell.setCellValue(e.getItemName());
             if (isEven) iCell.setCellStyle(currentStyle);
             
             Cell amtCell = row.createCell(2);
-            amtCell.setCellValue(e.getAmount().doubleValue());
+            double amt = e.getAmount().doubleValue();
+            amtCell.setCellValue(amt);
             amtCell.setCellStyle(currentCurrencyStyle);
+            total += amt;
             
             Cell dateCell = row.createCell(3);
             if (e.getExpenseDate() != null) {
@@ -183,9 +209,21 @@ public class ReportServlet extends HttpServlet {
             if (isEven) pbCell.setCellStyle(currentStyle);
         }
 
+        // Total row
+        CellStyle totalStyle = createTotalStyle(workbook);
+        CellStyle totalCurrencyStyle = createTotalCurrencyStyle(workbook);
+        Row totalRow = sheet.createRow(rowNum + 1);
+        Cell tLabel = totalRow.createCell(1);
+        tLabel.setCellValue("एकूण खर्च");
+        tLabel.setCellStyle(totalStyle);
+        Cell tVal = totalRow.createCell(2);
+        tVal.setCellValue(total);
+        tVal.setCellStyle(totalCurrencyStyle);
+
         for (int i = 0; i < headers.length; i++) {
             sheet.autoSizeColumn(i);
         }
+        return total;
     }
 
     private CellStyle createHeaderStyle(Workbook workbook) {
@@ -234,7 +272,7 @@ public class ReportServlet extends HttpServlet {
         return style;
     }
 
-    private void createRoomTrackerSheet(Workbook workbook, Sheet sheet, Long mandalId) throws java.sql.SQLException {
+    private double[] createRoomTrackerSheet(Workbook workbook, Sheet sheet, Long mandalId) throws java.sql.SQLException {
         // This sheet is now the OWNER sheet — rename it
         workbook.setSheetName(workbook.getSheetIndex(sheet), "घरमालक (Owner)");
         List<SocietyRoom> allRooms = roomDao.findAll(mandalId, null, null);
@@ -447,5 +485,108 @@ public class ReportServlet extends HttpServlet {
         // Auto-size columns
         int totalCols = 1 + floors.size() * 3;
         for (int i = 0; i < totalCols; i++) rentalSheet.autoSizeColumn(i);
+
+        return new double[]{ownerCashTotal + ownerOnlineTotal, grandTotal};
+    }
+
+    // ── Summary Sheet (जमा खर्च) ────────────────────────────────────────────
+    private void createSummarySheet(Workbook workbook, Sheet sheet, double totalVargani, double totalKharch,
+                                     double ownerCollected, double renterCollected) {
+        CellStyle titleStyle = workbook.createCellStyle();
+        Font titleFont = workbook.createFont();
+        titleFont.setBold(true);
+        titleFont.setFontHeightInPoints((short) 16);
+        titleStyle.setFont(titleFont);
+
+        CellStyle labelStyle = workbook.createCellStyle();
+        Font labelFont = workbook.createFont();
+        labelFont.setBold(true);
+        labelFont.setFontHeightInPoints((short) 11);
+        labelStyle.setFont(labelFont);
+
+        CellStyle currencyStyle = workbook.createCellStyle();
+        DataFormat fmt = workbook.createDataFormat();
+        currencyStyle.setDataFormat(fmt.getFormat("#,##0.00"));
+        Font cFont = workbook.createFont();
+        cFont.setBold(true);
+        cFont.setFontHeightInPoints((short) 11);
+        currencyStyle.setFont(cFont);
+
+        CellStyle totalLabelStyle = workbook.createCellStyle();
+        Font tlFont = workbook.createFont();
+        tlFont.setBold(true);
+        tlFont.setFontHeightInPoints((short) 13);
+        totalLabelStyle.setFont(tlFont);
+
+        CellStyle totalValueStyle = workbook.createCellStyle();
+        totalValueStyle.setDataFormat(fmt.getFormat("#,##0.00"));
+        Font tvFont = workbook.createFont();
+        tvFont.setBold(true);
+        tvFont.setFontHeightInPoints((short) 13);
+        totalValueStyle.setFont(tvFont);
+
+        // Title
+        Row r0 = sheet.createRow(0);
+        Cell t = r0.createCell(0);
+        t.setCellValue("जमा खर्च");
+        t.setCellStyle(titleStyle);
+
+        // Headers
+        Row r2 = sheet.createRow(2);
+        Cell h1 = r2.createCell(0); h1.setCellValue("तपशील"); h1.setCellStyle(labelStyle);
+        Cell h2 = r2.createCell(1); h2.setCellValue("रक्कम"); h2.setCellStyle(labelStyle);
+
+        // Owner collection
+        Row r4 = sheet.createRow(4);
+        r4.createCell(0).setCellValue("जमा झालेली वर्गणी (घरमालक)");
+        Cell v4 = r4.createCell(1); v4.setCellValue(ownerCollected); v4.setCellStyle(currencyStyle);
+
+        // Renter collection
+        Row r5 = sheet.createRow(5);
+        r5.createCell(0).setCellValue("जमा झालेली वर्गणी (भाडेकरू)");
+        Cell v5 = r5.createCell(1); v5.setCellValue(renterCollected); v5.setCellStyle(currencyStyle);
+
+        // Total Vargani
+        Row r6 = sheet.createRow(6);
+        Cell l6 = r6.createCell(0); l6.setCellValue("एकूण वर्गणी जमा"); l6.setCellStyle(totalLabelStyle);
+        Cell v6 = r6.createCell(1); v6.setCellValue(totalVargani); v6.setCellStyle(totalValueStyle);
+
+        // Empty row
+        // Total Kharch
+        Row r8 = sheet.createRow(8);
+        Cell l8 = r8.createCell(0); l8.setCellValue("एकूण खर्च"); l8.setCellStyle(totalLabelStyle);
+        Cell v8 = r8.createCell(1); v8.setCellValue(totalKharch); v8.setCellStyle(totalValueStyle);
+
+        // Balance
+        Row r10 = sheet.createRow(10);
+        Cell l10 = r10.createCell(0); l10.setCellValue("एकूण (बाकी)"); l10.setCellStyle(totalLabelStyle);
+        Cell v10 = r10.createCell(1); v10.setCellValue(totalVargani - totalKharch); v10.setCellStyle(totalValueStyle);
+
+        sheet.autoSizeColumn(0);
+        sheet.autoSizeColumn(1);
+    }
+
+    private CellStyle createTotalStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 12);
+        style.setFont(font);
+        style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return style;
+    }
+
+    private CellStyle createTotalCurrencyStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 12);
+        style.setFont(font);
+        DataFormat format = workbook.createDataFormat();
+        style.setDataFormat(format.getFormat("#,##0.00"));
+        style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return style;
     }
 }
