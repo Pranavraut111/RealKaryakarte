@@ -118,8 +118,8 @@ public class UserDao {
 
     public User insert(User user) throws SQLException {
         String sql = """
-            INSERT INTO users (name, phone, email, role, language_pref, photo_url, is_active, mandal_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (name, phone, email, role, language_pref, photo_url, is_active, mandal_id, approval_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *
             """;
         try (Connection conn = DbConnectionManager.getConnection();
@@ -142,6 +142,7 @@ public class UserDao {
             } else {
                 ps.setNull(8, Types.BIGINT);
             }
+            ps.setString(9, user.getApprovalStatus() != null ? user.getApprovalStatus() : "APPROVED");
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     User u = mapRow(rs);
