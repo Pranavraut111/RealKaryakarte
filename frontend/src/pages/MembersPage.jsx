@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { getUsers, changeUserRole, getMandal } from "../api";
+import { getUsers, changeUserRole, getMandal, approveUser, rejectUser } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useLang } from "../context/LangContext";
 import { AppShell } from "@/components/AppShell";
-import { Shield, User, ShieldAlert, UserPlus, Copy, Check } from "lucide-react";
+import { Shield, User, ShieldAlert, UserPlus, Copy, Check, Clock, UserCheck, UserX } from "lucide-react";
 
 export default function MembersPage() {
   const { user } = useAuth();
@@ -14,12 +14,12 @@ export default function MembersPage() {
   const [inviteCode, setInviteCode] = useState("");
 
   const isAdmin = user?.role === "ADMIN";
+  const isAdminOrKaryakarta = isAdmin || user?.role === "KARYAKARTA";
   const { t } = useLang();
 
   const fetchMembers = async () => {
     try {
       const res = await getUsers();
-      // API wraps response in { data: [...] }
       setMembers(res.data || res || []);
     } catch (err) {
       setError(err.message);
@@ -30,7 +30,6 @@ export default function MembersPage() {
 
   useEffect(() => {
     fetchMembers();
-    // Fetch invite code
     getMandal().then(res => {
       setInviteCode(res.data?.inviteCode || "");
     }).catch(() => {});
@@ -43,6 +42,25 @@ export default function MembersPage() {
       fetchMembers();
     } catch (err) {
       alert("Failed to change role: " + err.message);
+    }
+  };
+
+  const handleApprove = async (memberId) => {
+    try {
+      await approveUser(memberId);
+      fetchMembers();
+    } catch (err) {
+      alert("Failed to approve: " + err.message);
+    }
+  };
+
+  const handleReject = async (memberId) => {
+    if (!confirm("Are you sure you want to reject this member?")) return;
+    try {
+      await rejectUser(memberId);
+      fetchMembers();
+    } catch (err) {
+      alert("Failed to reject: " + err.message);
     }
   };
 
@@ -62,15 +80,18 @@ export default function MembersPage() {
     }
   };
 
-  /* What each role can do */
   const rolePermissions = {
     ADMIN: [t("manageRoles"), t("postDeleteNotices"), t("addEditVarganiExpenses"), t("exportReports"), t("fullAccess")],
     KARYAKARTA: [t("postNotices"), t("addEditVarganiExpenses"), t("viewReports")],
     MEMBER: [t("viewNotices"), t("viewVarganiExpenses")],
   };
 
+  // Split members into pending and approved
+  const pendingMembers = members.filter(m => m.approvalStatus === "PENDING");
+  const approvedMembers = members.filter(m => m.approvalStatus !== "PENDING");
+
   return (
-    <AppShell title={t("membersAndRoles")} subtitle={`${members.length} ${t("members")}`}>
+    <AppShell title={t("membersAndRoles")} subtitle={`${approvedMembers.length} ${t("members")}`}>
       {/* Invite link card */}
       {isAdmin && (
         <section className="surface-lift mb-5 rounded-2xl p-5">
@@ -92,6 +113,61 @@ export default function MembersPage() {
               {copied ? t("copied") : t("copyLink")}
             </button>
           </div>
+        </section>
+      )}
+
+      {/* ── Pending Approval Requests ────────────────────────────────── */}
+      {isAdminOrKaryakarta && pendingMembers.length > 0 && (
+        <section className="mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="h-4 w-4 text-amber-500" />
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-amber-500">
+              Pending Approval
+            </p>
+            <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+              {pendingMembers.length}
+            </span>
+          </div>
+
+          <ul className="space-y-3">
+            {pendingMembers.map(member => (
+              <li key={member.id} className="surface-lift rounded-2xl p-4 border border-amber-500/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-sm font-semibold text-amber-600">
+                      {(member.name || "?").charAt(0).toUpperCase()}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{member.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{member.phone || "No phone"}</p>
+                    </div>
+                  </div>
+
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-600">
+                    <Clock className="h-3 w-3" />
+                    PENDING
+                  </span>
+                </div>
+
+                <div className="mt-3 flex gap-2 border-t border-border pt-3">
+                  <button
+                    onClick={() => handleApprove(member.id)}
+                    className="flex-1 min-h-[36px] rounded-xl bg-emerald-500/10 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500/20 flex items-center justify-center gap-1.5"
+                  >
+                    <UserCheck className="h-3.5 w-3.5" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleReject(member.id)}
+                    className="flex-1 min-h-[36px] rounded-xl bg-destructive/10 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/20 flex items-center justify-center gap-1.5"
+                  >
+                    <UserX className="h-3.5 w-3.5" />
+                    Reject
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -119,7 +195,7 @@ export default function MembersPage() {
         </div>
       </section>
 
-      {/* Members list */}
+      {/* Approved Members list */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -128,14 +204,14 @@ export default function MembersPage() {
         <div className="surface-lift rounded-2xl px-6 py-14 text-center">
           <p className="text-sm text-destructive">{error}</p>
         </div>
-      ) : members.length === 0 ? (
+      ) : approvedMembers.length === 0 ? (
         <div className="surface-lift rounded-2xl px-6 py-14 text-center">
           <p className="font-display text-lg font-semibold text-foreground">{t("noMembersYet")}</p>
           <p className="mt-1 text-sm text-muted-foreground">{t("shareInvite")}</p>
         </div>
       ) : (
         <ul className="space-y-3">
-          {members.map(member => (
+          {approvedMembers.map(member => (
             <li key={member.id} className="surface-lift rounded-2xl p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

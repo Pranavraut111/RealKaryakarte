@@ -57,6 +57,16 @@ public class AuthFilter implements Filter {
         // ── Attach user context to request ──────────────────────────────
         Long userId = JwtUtil.getUserId(claims);
         String userRole = JwtUtil.getRole(claims);
+        String approvalStatus = JwtUtil.getApprovalStatus(claims);
+
+        // Block PENDING/REJECTED users from all data endpoints
+        if (!"APPROVED".equals(approvalStatus) && !"ADMIN".equals(userRole) && !"KARYAKARTA".equals(userRole)) {
+            JsonUtil.writeError(response, 403,
+                "PENDING".equals(approvalStatus)
+                    ? "Your account is pending approval from the admin."
+                    : "Your join request was rejected.");
+            return;
+        }
 
         request.setAttribute("userId", userId);
         request.setAttribute("userRole", userRole);

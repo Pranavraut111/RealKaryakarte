@@ -42,10 +42,14 @@ public class JwtUtil {
      * Members get a 30-day token; Admin/Karyakarta get the default (72h).
      */
     public static String generateToken(Long userId, String role, String email, Long mandalId) {
+        return generateToken(userId, role, email, mandalId, "APPROVED");
+    }
+
+    public static String generateToken(Long userId, String role, String email, Long mandalId, String approvalStatus) {
         Date now = new Date();
         long expiry = "MEMBER".equals(role)
-                ? 30L * 24 * 3600 * 1000  // 30 days for members
-                : EXPIRATION_MS;           // default for others
+                ? 30L * 24 * 3600 * 1000
+                : EXPIRATION_MS;
         Date expiryDate = new Date(now.getTime() + expiry);
 
         return Jwts.builder()
@@ -53,6 +57,7 @@ public class JwtUtil {
                 .claim("role", role)
                 .claim("email", email)
                 .claim("mandalId", mandalId)
+                .claim("approvalStatus", approvalStatus != null ? approvalStatus : "APPROVED")
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(SECRET_KEY)
@@ -94,5 +99,10 @@ public class JwtUtil {
     public static Long getMandalId(Claims claims) {
         Number mandalId = claims.get("mandalId", Number.class);
         return mandalId != null ? mandalId.longValue() : null;
+    }
+
+    public static String getApprovalStatus(Claims claims) {
+        String status = claims.get("approvalStatus", String.class);
+        return status != null ? status : "APPROVED";
     }
 }

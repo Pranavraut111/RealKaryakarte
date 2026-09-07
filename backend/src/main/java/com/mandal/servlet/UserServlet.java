@@ -101,6 +101,22 @@ public class UserServlet extends HttpServlet {
                 );
                 JsonUtil.writeOk(resp, ApiResponse.ok("Profile updated", null));
 
+            } else if ("approve".equals(action)) {
+                if (!"ADMIN".equals(requesterRole) && !"KARYAKARTA".equals(requesterRole)) {
+                    JsonUtil.writeError(resp, 403, "Only Admin/Karyakarta can approve members");
+                    return;
+                }
+                userService.approveUser(targetUserId);
+                JsonUtil.writeOk(resp, ApiResponse.ok("Member approved", null));
+
+            } else if ("reject".equals(action)) {
+                if (!"ADMIN".equals(requesterRole) && !"KARYAKARTA".equals(requesterRole)) {
+                    JsonUtil.writeError(resp, 403, "Only Admin/Karyakarta can reject members");
+                    return;
+                }
+                userService.rejectUser(targetUserId);
+                JsonUtil.writeOk(resp, ApiResponse.ok("Member rejected", null));
+
             } else {
                 JsonUtil.writeError(resp, 400, "Unknown action: " + action);
             }

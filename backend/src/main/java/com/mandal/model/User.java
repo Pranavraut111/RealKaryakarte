@@ -21,11 +21,13 @@ public class User {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long mandalId;
+    private String approvalStatus;
 
     public User() {
         this.role = Role.MEMBER;
         this.languagePref = "en";
         this.active = true;
+        this.approvalStatus = "APPROVED";
     }
 
     // ─── Getters & Setters ───────────────────────────────────────────────
@@ -65,4 +67,7 @@ public class User {
 
     public Long getMandalId() { return mandalId; }
     public void setMandalId(Long mandalId) { this.mandalId = mandalId; }
+
+    public String getApprovalStatus() { return approvalStatus; }
+    public void setApprovalStatus(String approvalStatus) { this.approvalStatus = approvalStatus; }
 }

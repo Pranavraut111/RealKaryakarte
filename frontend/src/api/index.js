@@ -222,6 +222,14 @@ export function changeUserRole(userId, role) {
   });
 }
 
+export function approveUser(userId) {
+  return request(`/users/${userId}/approve`, { method: "PUT" });
+}
+
+export function rejectUser(userId) {
+  return request(`/users/${userId}/reject`, { method: "PUT" });
+}
+
 export function updateProfile(userId, data) {
   return request(`/users/${userId}/profile`, {
     method: "PUT",

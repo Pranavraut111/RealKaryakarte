@@ -34,6 +34,11 @@ public class UserDao {
         u.setLanguagePref(rs.getString("language_pref"));
         u.setPhotoUrl(rs.getString("photo_url"));
         u.setActive(rs.getBoolean("is_active"));
+        try {
+            u.setApprovalStatus(rs.getString("approval_status"));
+        } catch (SQLException ignore) {
+            u.setApprovalStatus("APPROVED");
+        }
         u.setCreatedAt(rs.getTimestamp("created_at") != null
                 ? rs.getTimestamp("created_at").toLocalDateTime() : null);
         u.setUpdatedAt(rs.getTimestamp("updated_at") != null
@@ -192,5 +197,15 @@ public class UserDao {
             }
         }
         return 0;
+    }
+
+    public void updateApprovalStatus(Long userId, String status) throws SQLException {
+        String sql = "UPDATE users SET approval_status = ?, updated_at = now() WHERE id = ?";
+        try (Connection conn = DbConnectionManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, status);
+            ps.setLong(2, userId);
+            ps.executeUpdate();
+        }
     }
 }

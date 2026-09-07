@@ -135,6 +135,7 @@ public class AuthServlet extends HttpServlet {
         Object[] result = authService.memberJoin(name, phone, inviteCode);
         String token = (String) result[0];
         User user = (User) result[1];
+        boolean pending = result.length > 2 && Boolean.TRUE.equals(result[2]);
 
         // Check if this user was previously promoted (needs password)
         boolean needsPassword = false;
@@ -143,12 +144,13 @@ public class AuthServlet extends HttpServlet {
             needsPassword = (hash == null || hash.isBlank());
         }
 
-        Map<String, Object> data = Map.of(
-            "token", token,
-            "user", user,
-            "needsPassword", needsPassword
-        );
-        JsonUtil.writeOk(resp, ApiResponse.ok("Welcome!", data));
+        Map<String, Object> data = new java.util.HashMap<>();
+        data.put("token", token);
+        data.put("user", user);
+        data.put("needsPassword", needsPassword);
+        data.put("pending", pending);
+
+        JsonUtil.writeOk(resp, ApiResponse.ok(pending ? "Your request is pending approval." : "Welcome!", data));
     }
 
     /**

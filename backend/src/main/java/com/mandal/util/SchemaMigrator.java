@@ -51,6 +51,14 @@ public class SchemaMigrator {
                 System.err.println("[SchemaMigrator] contributions room columns: " + e.getMessage());
             }
 
+            // Add approval_status column to users for member approval flow
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS approval_status VARCHAR(10) DEFAULT 'APPROVED'")) {
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                System.err.println("[SchemaMigrator] approval_status column: " + e.getMessage());
+            }
+
             createAdminUser(conn);
             System.out.println("[SchemaMigrator] Migrations complete.");
         } catch (SQLException e) {
@@ -60,20 +68,32 @@ public class SchemaMigrator {
     }
 
     private static void createAdminUser(Connection conn) throws SQLException {
+        // Read admin credentials from environment variables
+        String adminEmail = System.getenv("ADMIN_EMAIL");
+        String adminPassword = System.getenv("ADMIN_PASSWORD");
+        String adminName = System.getenv("ADMIN_NAME");
+
+        if (adminEmail == null || adminEmail.isBlank() || adminPassword == null || adminPassword.isBlank()) {
+            System.out.println("[SchemaMigrator] ADMIN_EMAIL / ADMIN_PASSWORD env vars not set — skipping admin setup.");
+            return;
+        }
+        if (adminName == null || adminName.isBlank()) adminName = "Admin";
+
         // Check if admin already exists
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT id FROM users WHERE email = ?")) {
-            ps.setString(1, "praut1086@gmail.com");
+            ps.setString(1, adminEmail);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     long id = rs.getLong("id");
-                    String hash = PasswordUtil.hashPassword("Pranav@2137");
+                    String hash = PasswordUtil.hashPassword(adminPassword);
                     
                     PasswordStore.setPassword(id, hash);
                     
                     try (PreparedStatement up = conn.prepareStatement(
-                            "UPDATE users SET role = 'ADMIN', name = 'Pranav Raut' WHERE id = ?")) {
-                        up.setLong(1, id);
+                            "UPDATE users SET role = 'ADMIN', name = ? WHERE id = ?")) {
+                        up.setString(1, adminName);
+                        up.setLong(2, id);
                         up.executeUpdate();
                     }
                     System.out.println("[SchemaMigrator] Admin user updated (id=" + id + ").");
@@ -85,15 +105,15 @@ public class SchemaMigrator {
         // Create new admin
         try (PreparedStatement ps = conn.prepareStatement(
                 "INSERT INTO users (name, phone, email, role, is_active) VALUES (?, ?, ?, 'ADMIN', TRUE) RETURNING id")) {
-            ps.setString(1, "Pranav Raut");
-            ps.setString(2, "0000000000"); // placeholder phone
-            ps.setString(3, "praut1086@gmail.com");
+            ps.setString(1, adminName);
+            ps.setString(2, "0000000000");
+            ps.setString(3, adminEmail);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     long id = rs.getLong(1);
-                    String hash = PasswordUtil.hashPassword("Pranav@2137");
+                    String hash = PasswordUtil.hashPassword(adminPassword);
                     PasswordStore.setPassword(id, hash);
-                    System.out.println("[SchemaMigrator] Admin user created: praut1086@gmail.com");
+                    System.out.println("[SchemaMigrator] Admin user created: " + adminEmail);
                 }
             }
         }

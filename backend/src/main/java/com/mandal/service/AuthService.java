@@ -88,6 +88,18 @@ public class AuthService {
         // Check if user with this phone already exists in this mandal
         User existing = userDao.findByPhoneAndMandalId(phone.trim(), mandal.getId());
         if (existing != null) {
+            // If rejected, block re-entry
+            if ("REJECTED".equals(existing.getApprovalStatus())) {
+                throw new IllegalArgumentException("Your join request was rejected by the admin.");
+            }
+
+            // If still pending, return pending flag (no dashboard access)
+            if ("PENDING".equals(existing.getApprovalStatus())) {
+                String token = JwtUtil.generateToken(existing.getId(), existing.getRole().name(),
+                        existing.getEmail(), existing.getMandalId(), "PENDING");
+                return new Object[]{ token, existing, true }; // third element = pending flag
+            }
+
             // If they are a karyakarta/admin AND have a password, force them to use login page
             if (existing.getRole() != Role.MEMBER) {
                 String hash = PasswordStore.getPassword(existing.getId());
@@ -96,13 +108,13 @@ public class AuthService {
                 }
             }
 
-            // Returning user (member, or karyakarta without password) — log them in directly
+            // Returning approved user — log them in directly
             String token = JwtUtil.generateToken(existing.getId(), existing.getRole().name(),
-                    existing.getEmail(), existing.getMandalId());
-            return new Object[]{ token, existing };
+                    existing.getEmail(), existing.getMandalId(), "APPROVED");
+            return new Object[]{ token, existing, false };
         }
 
-        // New member — create account without password
+        // New member — create account with PENDING status
         User user = new User();
         user.setName(name.trim());
         user.setPhone(phone.trim());
@@ -110,14 +122,15 @@ public class AuthService {
         user.setRole(Role.MEMBER);
         user.setLanguagePref("en");
         user.setMandalId(mandal.getId());
+        user.setApprovalStatus("PENDING");
 
         User saved = userDao.insert(user);
         if (saved == null) {
             throw new RuntimeException("Failed to create member");
         }
 
-        String token = JwtUtil.generateToken(saved.getId(), saved.getRole().name(), saved.getEmail(), saved.getMandalId());
-        return new Object[]{ token, saved };
+        String token = JwtUtil.generateToken(saved.getId(), saved.getRole().name(), saved.getEmail(), saved.getMandalId(), "PENDING");
+        return new Object[]{ token, saved, true }; // pending = true
     }
 
     /**

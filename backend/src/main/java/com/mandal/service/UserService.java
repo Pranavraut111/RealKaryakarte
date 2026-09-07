@@ -62,4 +62,12 @@ public class UserService {
         }
         userDao.updateProfile(userId, name, email, languagePref, photoUrl);
     }
+
+    public void approveUser(Long userId) throws SQLException {
+        userDao.updateApprovalStatus(userId, "APPROVED");
+    }
+
+    public void rejectUser(Long userId) throws SQLException {
+        userDao.updateApprovalStatus(userId, "REJECTED");
+    }
 }
