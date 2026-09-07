@@ -25,16 +25,16 @@ export function AppShell({ title, subtitle, mandalName: propMandalName, children
       <div className="relative mx-auto w-full max-w-xl px-5 pb-32 pt-6 sm:max-w-2xl">
         <header className="mb-7 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Logo" className="h-14 w-14 rounded-2xl object-contain shrink-0" />
-            <div>
+            <img src="/logo.png" alt="Logo" className="h-12 w-12 rounded-2xl object-contain shrink-0 self-center" />
+            <div className="leading-none">
               <p className="text-sm font-extrabold uppercase tracking-[0.15em] bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-clip-text text-transparent">
                 {displayMandalName}
               </p>
-              <h1 className="font-display mt-0.5 text-3xl leading-tight font-semibold tracking-tight text-foreground">
+              <h1 className="font-display text-[1.65rem] leading-tight font-semibold tracking-tight text-foreground -mt-0.5">
                 {title}
               </h1>
               {subtitle ? (
-                <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
               ) : null}
             </div>
           </div>
