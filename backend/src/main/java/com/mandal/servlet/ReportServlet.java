@@ -235,91 +235,217 @@ public class ReportServlet extends HttpServlet {
     }
 
     private void createRoomTrackerSheet(Workbook workbook, Sheet sheet, Long mandalId) throws java.sql.SQLException {
-        List<SocietyRoom> rooms = roomDao.findAll(mandalId, null, null);
+        // This sheet is now the OWNER sheet — rename it
+        workbook.setSheetName(workbook.getSheetIndex(sheet), "घरमालक (Owner)");
+        List<SocietyRoom> allRooms = roomDao.findAll(mandalId, null, null);
 
+        // Separate owners and renters
+        List<SocietyRoom> owners = new java.util.ArrayList<>();
+        List<SocietyRoom> renters = new java.util.ArrayList<>();
+        for (SocietyRoom r : allRooms) {
+            if ("OWNER".equals(r.getResidentType()) || r.getFloorNumber() == 0) {
+                owners.add(r);
+            } else {
+                renters.add(r);
+            }
+        }
+
+        // ── OWNER SHEET ─────────────────────────────────────────────────
         CellStyle headerStyle = createHeaderStyle(workbook);
-        CellStyle evenRowStyle = createEvenRowStyle(workbook);
         CellStyle currencyStyle = createCurrencyStyle(workbook, false);
-        CellStyle evenCurrencyStyle = createCurrencyStyle(workbook, true);
+        CellStyle titleStyle = workbook.createCellStyle();
+        Font titleFont = workbook.createFont();
+        titleFont.setBold(true);
+        titleFont.setFontHeightInPoints((short) 14);
+        titleStyle.setFont(titleFont);
 
-        // Status cell styles
+        CellStyle subtitleStyle = workbook.createCellStyle();
+        Font subtitleFont = workbook.createFont();
+        subtitleFont.setBold(true);
+        subtitleFont.setFontHeightInPoints((short) 11);
+        subtitleStyle.setFont(subtitleFont);
+
         CellStyle paidStyle = workbook.createCellStyle();
         paidStyle.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
         paidStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        Font paidFont = workbook.createFont();
-        paidFont.setBold(true);
-        paidStyle.setFont(paidFont);
 
         CellStyle pendingStyle = workbook.createCellStyle();
         pendingStyle.setFillForegroundColor(IndexedColors.ROSE.getIndex());
         pendingStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        Font pendingFont = workbook.createFont();
-        pendingFont.setBold(true);
-        pendingStyle.setFont(pendingFont);
 
-        CellStyle partialStyle = workbook.createCellStyle();
-        partialStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
-        partialStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        Font partialFont = workbook.createFont();
-        partialFont.setBold(true);
-        partialStyle.setFont(partialFont);
+        // Title rows
+        Row titleRow = sheet.createRow(0);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("जमा झालेली वर्गणी (घरमालक)");
+        titleCell.setCellStyle(titleStyle);
 
-        Row headerRow = sheet.createRow(0);
-        String[] headers = {"Room No.", "Floor", "Resident Name", "Phone", "Status", "Amount Paid (₹)", "Marked By", "Notes"};
-        for (int i = 0; i < headers.length; i++) {
-            Cell cell = headerRow.createCell(i);
-            cell.setCellValue(headers[i]);
-            cell.setCellStyle(headerStyle);
+        // Header row
+        Row hdrRow = sheet.createRow(2);
+        String[] ownerHeaders = {"रूम नंबर", "नाव", "रक्कम", "पेमेंट माध्यम", "टिपणी"};
+        for (int i = 0; i < ownerHeaders.length; i++) {
+            Cell c = hdrRow.createCell(i);
+            c.setCellValue(ownerHeaders[i]);
+            c.setCellStyle(headerStyle);
         }
 
-        int rowNum = 1;
-        for (SocietyRoom r : rooms) {
-            boolean isEven = (rowNum % 2 == 0);
+        // Data rows
+        owners.sort((a, b) -> {
+            try { return Integer.parseInt(a.getRoomNumber()) - Integer.parseInt(b.getRoomNumber()); }
+            catch (NumberFormatException e) { return a.getRoomNumber().compareTo(b.getRoomNumber()); }
+        });
+
+        int rowNum = 3;
+        double ownerCashTotal = 0, ownerOnlineTotal = 0;
+        for (SocietyRoom r : owners) {
             Row row = sheet.createRow(rowNum++);
-            CellStyle currentStyle = isEven ? evenRowStyle : workbook.createCellStyle();
-            CellStyle currentCurrencyStyle = isEven ? evenCurrencyStyle : currencyStyle;
+            row.createCell(0).setCellValue(r.getRoomNumber());
+            row.createCell(1).setCellValue(r.getResidentName() != null ? r.getResidentName() : "");
 
-            Cell roomCell = row.createCell(0);
-            roomCell.setCellValue(r.getRoomNumber());
-            if (isEven) roomCell.setCellStyle(currentStyle);
-
-            Cell floorCell = row.createCell(1);
-            floorCell.setCellValue(r.getFloorNumber() == 0 ? "Owner" : String.valueOf(r.getFloorNumber()));
-            if (isEven) floorCell.setCellStyle(currentStyle);
-
-            Cell nameCell = row.createCell(2);
-            nameCell.setCellValue(r.getResidentName() != null ? r.getResidentName() : "");
-            if (isEven) nameCell.setCellStyle(currentStyle);
-
-            Cell phoneCell = row.createCell(3);
-            phoneCell.setCellValue(r.getResidentPhone() != null ? r.getResidentPhone() : "");
-            if (isEven) phoneCell.setCellStyle(currentStyle);
-
-            Cell statusCell = row.createCell(4);
-            String status = r.getVarganiStatus() != null ? r.getVarganiStatus() : "PENDING";
-            statusCell.setCellValue(status);
-            switch (status) {
-                case "PAID" -> statusCell.setCellStyle(paidStyle);
-                case "PENDING" -> statusCell.setCellStyle(pendingStyle);
-                case "PARTIALLY_PAID" -> statusCell.setCellStyle(partialStyle);
-                default -> { if (isEven) statusCell.setCellStyle(currentStyle); }
+            Cell amtCell = row.createCell(2);
+            double amt = r.getAmountPaid() != null ? r.getAmountPaid().doubleValue() : 0;
+            if (amt > 0) {
+                amtCell.setCellValue(amt);
+                amtCell.setCellStyle(currencyStyle);
             }
 
-            Cell amtCell = row.createCell(5);
-            amtCell.setCellValue(r.getAmountPaid() != null ? r.getAmountPaid().doubleValue() : 0);
-            amtCell.setCellStyle(currentCurrencyStyle);
+            String pm = r.getPaymentMethod();
+            row.createCell(3).setCellValue(pm != null ? ("CASH".equals(pm) ? "Cash" : "Online") : "");
+            row.createCell(4).setCellValue(r.getNotes() != null ? r.getNotes() : "");
 
-            Cell markedByCell = row.createCell(6);
-            markedByCell.setCellValue(r.getMarkedByName() != null ? r.getMarkedByName() : "");
-            if (isEven) markedByCell.setCellStyle(currentStyle);
+            // Color coding
+            if ("PAID".equals(r.getVarganiStatus())) {
+                row.getCell(0).setCellStyle(paidStyle);
+            } else if ("PENDING".equals(r.getVarganiStatus())) {
+                row.getCell(0).setCellStyle(pendingStyle);
+            }
 
-            Cell notesCell = row.createCell(7);
-            notesCell.setCellValue(r.getNotes() != null ? r.getNotes() : "");
-            if (isEven) notesCell.setCellStyle(currentStyle);
+            if ("CASH".equals(pm)) ownerCashTotal += amt;
+            else if (pm != null) ownerOnlineTotal += amt;
         }
 
-        for (int i = 0; i < headers.length; i++) {
-            sheet.autoSizeColumn(i);
+        // Summary row
+        Row sumRow = sheet.createRow(rowNum + 1);
+        sumRow.createCell(1).setCellValue("एकूण");
+        Cell sumCell = sumRow.createCell(2);
+        sumCell.setCellValue(ownerCashTotal + ownerOnlineTotal);
+        sumCell.setCellStyle(currencyStyle);
+        sumRow.getCell(1).setCellStyle(subtitleStyle);
+
+        for (int i = 0; i < ownerHeaders.length; i++) sheet.autoSizeColumn(i);
+
+        // ── RENTAL SHEET ────────────────────────────────────────────────
+        Sheet rentalSheet = workbook.createSheet("भाडेकरू (Rental)");
+
+        // Group renters by floor
+        java.util.Map<Integer, List<SocietyRoom>> byFloor = new java.util.TreeMap<>();
+        for (SocietyRoom r : renters) {
+            byFloor.computeIfAbsent(r.getFloorNumber(), k -> new java.util.ArrayList<>()).add(r);
         }
+
+        // Get all unique room numbers for row alignment
+        java.util.Set<String> roomNums = new java.util.TreeSet<>((a, b) -> {
+            try { return Integer.parseInt(a) - Integer.parseInt(b); }
+            catch (NumberFormatException e) { return a.compareTo(b); }
+        });
+        for (SocietyRoom r : renters) roomNums.add(r.getRoomNumber());
+        List<String> sortedRooms = new java.util.ArrayList<>(roomNums);
+
+        // Title
+        Row rTitleRow = rentalSheet.createRow(0);
+        Cell rTitleCell = rTitleRow.createCell(0);
+        rTitleCell.setCellValue("जमा झालेली वर्गणी (भाडेकरू)");
+        rTitleCell.setCellStyle(titleStyle);
+
+        // Floor headers (row 2)
+        List<Integer> floors = new java.util.ArrayList<>(byFloor.keySet());
+        String[] floorNames = {"तळ मजला A", "पहिला मजला B", "दुसरा मजला C", "तिसरा मजला D"};
+        Row floorHdrRow = rentalSheet.createRow(2);
+        for (int fi = 0; fi < floors.size(); fi++) {
+            int col = 1 + fi * 3;
+            int floor = floors.get(fi);
+            String label = floor < floorNames.length ? floorNames[floor] : "मजला " + floor;
+            Cell c = floorHdrRow.createCell(col);
+            c.setCellValue(label);
+            c.setCellStyle(subtitleStyle);
+        }
+
+        // Column headers (row 3)
+        Row colHdrRow = rentalSheet.createRow(3);
+        Cell roomHdrCell = colHdrRow.createCell(0);
+        roomHdrCell.setCellValue("रूम नंबर");
+        roomHdrCell.setCellStyle(headerStyle);
+
+        for (int fi = 0; fi < floors.size(); fi++) {
+            int base = 1 + fi * 3;
+            String[] subHeaders = {"नाव", "रक्कम", "पेमेंट माध्यम"};
+            for (int si = 0; si < subHeaders.length; si++) {
+                Cell c = colHdrRow.createCell(base + si);
+                c.setCellValue(subHeaders[si]);
+                c.setCellStyle(headerStyle);
+            }
+        }
+
+        // Data rows — one per room number, floors side by side
+        int dataStart = 4;
+        double[] floorTotals = new double[floors.size()];
+
+        for (int ri = 0; ri < sortedRooms.size(); ri++) {
+            String rn = sortedRooms.get(ri);
+            Row row = rentalSheet.createRow(dataStart + ri);
+            row.createCell(0).setCellValue(rn);
+
+            for (int fi = 0; fi < floors.size(); fi++) {
+                int base = 1 + fi * 3;
+                int floor = floors.get(fi);
+                // Find room for this floor
+                SocietyRoom match = null;
+                List<SocietyRoom> floorList = byFloor.get(floor);
+                if (floorList != null) {
+                    for (SocietyRoom r : floorList) {
+                        if (rn.equals(r.getRoomNumber())) { match = r; break; }
+                    }
+                }
+
+                if (match != null && match.getResidentName() != null && !match.getResidentName().isBlank()) {
+                    row.createCell(base).setCellValue(match.getResidentName());
+                    double amt = match.getAmountPaid() != null ? match.getAmountPaid().doubleValue() : 0;
+                    if (amt > 0) {
+                        Cell ac = row.createCell(base + 1);
+                        ac.setCellValue(amt);
+                        ac.setCellStyle(currencyStyle);
+                        floorTotals[fi] += amt;
+                    }
+                    String pm = match.getPaymentMethod();
+                    row.createCell(base + 2).setCellValue(pm != null ? ("CASH".equals(pm) ? "Cash" : "Online") : "");
+                } else {
+                    row.createCell(base).setCellValue(match != null ? "NA" : "");
+                }
+            }
+        }
+
+        // Summary rows
+        int sumStart = dataStart + sortedRooms.size() + 1;
+        Row rSumRow = rentalSheet.createRow(sumStart);
+        rSumRow.createCell(0).setCellValue("एकूण");
+        rSumRow.getCell(0).setCellStyle(subtitleStyle);
+        for (int fi = 0; fi < floors.size(); fi++) {
+            Cell c = rSumRow.createCell(2 + fi * 3);
+            c.setCellValue(floorTotals[fi]);
+            c.setCellStyle(currencyStyle);
+        }
+
+        // Grand total
+        Row grandRow = rentalSheet.createRow(sumStart + 1);
+        grandRow.createCell(0).setCellValue("एकूण भाडेकरू");
+        grandRow.getCell(0).setCellStyle(subtitleStyle);
+        double grandTotal = 0;
+        for (double ft : floorTotals) grandTotal += ft;
+        Cell gtCell = grandRow.createCell(2);
+        gtCell.setCellValue(grandTotal);
+        gtCell.setCellStyle(currencyStyle);
+
+        // Auto-size columns
+        int totalCols = 1 + floors.size() * 3;
+        for (int i = 0; i < totalCols; i++) rentalSheet.autoSizeColumn(i);
     }
 }
