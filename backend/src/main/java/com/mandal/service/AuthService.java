@@ -36,7 +36,7 @@ public class AuthService {
             return null;
         }
 
-        String token = JwtUtil.generateToken(user.getId(), user.getRole().name(), user.getEmail(), user.getMandalId());
+        String token = JwtUtil.generateToken(user.getId(), user.getRole().name(), user.getEmail(), user.getMandalId(), user.getApprovalStatus());
         return new Object[]{ token, user };
     }
 
@@ -59,7 +59,7 @@ public class AuthService {
             return null;
         }
 
-        String token = JwtUtil.generateToken(user.getId(), user.getRole().name(), user.getEmail(), user.getMandalId());
+        String token = JwtUtil.generateToken(user.getId(), user.getRole().name(), user.getEmail(), user.getMandalId(), user.getApprovalStatus());
         return new Object[]{ token, user };
     }
 
@@ -150,7 +150,7 @@ public class AuthService {
         PasswordStore.setPassword(userId, hash);
 
         // Return fresh token
-        String token = JwtUtil.generateToken(user.getId(), user.getRole().name(), user.getEmail(), user.getMandalId());
+        String token = JwtUtil.generateToken(user.getId(), user.getRole().name(), user.getEmail(), user.getMandalId(), user.getApprovalStatus());
         return new Object[]{ token, user };
     }
 
@@ -198,7 +198,7 @@ public class AuthService {
             throw new RuntimeException("Failed to create user");
         }
 
-        String token = JwtUtil.generateToken(saved.getId(), saved.getRole().name(), saved.getEmail(), saved.getMandalId());
+        String token = JwtUtil.generateToken(saved.getId(), saved.getRole().name(), saved.getEmail(), saved.getMandalId(), saved.getApprovalStatus());
         return new Object[]{ token, saved };
     }
 }
