@@ -58,6 +58,7 @@ public class SocietyRoomService {
                 owner.setMandalId(mandalId);
                 owner.setRoomNumber(String.valueOf(r));
                 owner.setFloorNumber(0);
+                owner.setResidentType("OWNER");
                 rooms.add(owner);
             }
             for (int f = floorStart; f <= floorEnd; f++) {
@@ -65,6 +66,7 @@ public class SocietyRoomService {
                 room.setMandalId(mandalId);
                 room.setRoomNumber(String.valueOf(r));
                 room.setFloorNumber(f);
+                room.setResidentType("RENTER");
                 rooms.add(room);
             }
         }
@@ -134,8 +136,8 @@ public class SocietyRoomService {
     /**
      * Get all rooms with optional status filter.
      */
-    public List<SocietyRoom> getAll(Long mandalId, String status) throws SQLException {
-        return roomDao.findAll(mandalId, status);
+    public List<SocietyRoom> getAll(Long mandalId, String status, String type) throws SQLException {
+        return roomDao.findAll(mandalId, status, type);
     }
 
     /**

@@ -17,6 +17,8 @@ public class SocietyRoom {
     private String residentName;
     private String residentPhone;
     private String varganiStatus;   // PENDING, PAID, PARTIALLY_PAID
+    private String residentType;     // OWNER, RENTER
+    private String paymentMethod;    // CASH, UPI, BANK_TRANSFER, CHEQUE
     private BigDecimal amountPaid;
     private Long contributionId;
     private String notes;
@@ -28,6 +30,7 @@ public class SocietyRoom {
 
     public SocietyRoom() {
         this.varganiStatus = "PENDING";
+        this.residentType = "RENTER";
         this.amountPaid = BigDecimal.ZERO;
         this.floorNumber = 1;
     }
@@ -78,4 +81,10 @@ public class SocietyRoom {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public String getResidentType() { return residentType; }
+    public void setResidentType(String residentType) { this.residentType = residentType; }
+
+    public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
 }

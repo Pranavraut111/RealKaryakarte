@@ -25,6 +25,8 @@ public class SocietyRoomDao {
         r.setResidentName(rs.getString("resident_name"));
         r.setResidentPhone(rs.getString("resident_phone"));
         r.setVarganiStatus(rs.getString("vargani_status"));
+        r.setResidentType(rs.getString("resident_type"));
+        r.setPaymentMethod(rs.getString("payment_method"));
         r.setAmountPaid(rs.getBigDecimal("amount_paid"));
         long contribId = rs.getLong("contribution_id");
         r.setContributionId(rs.wasNull() ? null : contribId);
@@ -49,8 +51,9 @@ public class SocietyRoomDao {
     public SocietyRoom insert(SocietyRoom r) throws SQLException {
         String sql = """
             INSERT INTO society_rooms (mandal_id, room_number, floor_number, resident_name,
-                                       resident_phone, vargani_status, amount_paid, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                       resident_phone, vargani_status, amount_paid, notes,
+                                       resident_type, payment_method)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *
             """;
         try (Connection conn = DbConnectionManager.getConnection();
@@ -63,6 +66,8 @@ public class SocietyRoomDao {
             ps.setString(6, r.getVarganiStatus());
             ps.setBigDecimal(7, r.getAmountPaid());
             ps.setString(8, r.getNotes());
+            ps.setString(9, r.getResidentType() != null ? r.getResidentType() : (r.getFloorNumber() == 0 ? "OWNER" : "RENTER"));
+            ps.setString(10, r.getPaymentMethod());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return mapRow(rs);
             }
@@ -76,8 +81,8 @@ public class SocietyRoomDao {
     public int insertBulk(List<SocietyRoom> rooms) throws SQLException {
         String sql = """
             INSERT INTO society_rooms (mandal_id, room_number, floor_number, resident_name,
-                                       resident_phone, vargani_status, amount_paid, notes)
-            VALUES (?, ?, ?, ?, ?, 'PENDING', 0, NULL)
+                                       resident_phone, vargani_status, amount_paid, notes, resident_type)
+            VALUES (?, ?, ?, ?, ?, 'PENDING', 0, NULL, ?)
             ON CONFLICT (mandal_id, room_number, floor_number) DO NOTHING
             """;
         int count = 0;
@@ -90,6 +95,7 @@ public class SocietyRoomDao {
                     ps.setInt(3, r.getFloorNumber());
                     ps.setString(4, r.getResidentName());
                     ps.setString(5, r.getResidentPhone());
+                    ps.setString(6, r.getResidentType() != null ? r.getResidentType() : (r.getFloorNumber() == 0 ? "OWNER" : "RENTER"));
                     ps.addBatch();
                 }
                 int[] results = ps.executeBatch();
@@ -112,7 +118,7 @@ public class SocietyRoomDao {
             UPDATE society_rooms
             SET resident_name = ?, resident_phone = ?,
                 vargani_status = ?, amount_paid = ?, contribution_id = ?, notes = ?,
-                marked_by = ?, marked_at = ?, updated_at = now()
+                marked_by = ?, marked_at = ?, payment_method = ?, updated_at = now()
             WHERE id = ? AND mandal_id = ?
             RETURNING *
             """;
@@ -126,8 +132,9 @@ public class SocietyRoomDao {
             ps.setString(6, r.getNotes());
             if (r.getMarkedBy() == null) ps.setNull(7, Types.BIGINT); else ps.setLong(7, r.getMarkedBy());
             if (r.getMarkedAt() == null) ps.setNull(8, Types.TIMESTAMP); else ps.setTimestamp(8, Timestamp.valueOf(r.getMarkedAt()));
-            ps.setLong(9, r.getId());
-            ps.setLong(10, r.getMandalId());
+            ps.setString(9, r.getPaymentMethod());
+            ps.setLong(10, r.getId());
+            ps.setLong(11, r.getMandalId());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return mapRow(rs);
             }
@@ -167,7 +174,7 @@ public class SocietyRoomDao {
      * Fetch all rooms with optional status filter.
      * Ordered by room_number (natural sort), then floor_number.
      */
-    public List<SocietyRoom> findAll(Long mandalId, String status) throws SQLException {
+    public List<SocietyRoom> findAll(Long mandalId, String status, String type) throws SQLException {
         StringBuilder sql = new StringBuilder("""
             SELECT r.*, u.name AS marked_by_name
             FROM society_rooms r
@@ -180,6 +187,11 @@ public class SocietyRoomDao {
         if (status != null && !status.isBlank()) {
             sql.append(" AND r.vargani_status = ?");
             params.add(status.toUpperCase());
+        }
+
+        if (type != null && !type.isBlank()) {
+            sql.append(" AND r.resident_type = ?");
+            params.add(type.toUpperCase());
         }
 
         // Natural sort: try numeric then alpha
@@ -213,7 +225,15 @@ public class SocietyRoomDao {
                 COUNT(*) FILTER (WHERE vargani_status = 'PAID') AS paid_count,
                 COUNT(*) FILTER (WHERE vargani_status = 'PENDING') AS pending_count,
                 COUNT(*) FILTER (WHERE vargani_status = 'PARTIALLY_PAID') AS partial_count,
-                COALESCE(SUM(amount_paid), 0) AS total_collected
+                COALESCE(SUM(amount_paid), 0) AS total_collected,
+                COUNT(*) FILTER (WHERE resident_type = 'OWNER') AS owner_total,
+                COUNT(*) FILTER (WHERE resident_type = 'OWNER' AND vargani_status = 'PAID') AS owner_paid,
+                COALESCE(SUM(amount_paid) FILTER (WHERE resident_type = 'OWNER'), 0) AS owner_collected,
+                COUNT(*) FILTER (WHERE resident_type = 'RENTER') AS renter_total,
+                COUNT(*) FILTER (WHERE resident_type = 'RENTER' AND vargani_status = 'PAID') AS renter_paid,
+                COALESCE(SUM(amount_paid) FILTER (WHERE resident_type = 'RENTER'), 0) AS renter_collected,
+                COALESCE(SUM(amount_paid) FILTER (WHERE payment_method IN ('CASH')), 0) AS cash_collected,
+                COALESCE(SUM(amount_paid) FILTER (WHERE payment_method IN ('UPI', 'BANK_TRANSFER')), 0) AS online_collected
             FROM society_rooms
             WHERE mandal_id = ?
             """;
@@ -228,6 +248,14 @@ public class SocietyRoomDao {
                     summary.put("pendingCount", rs.getInt("pending_count"));
                     summary.put("partialCount", rs.getInt("partial_count"));
                     summary.put("totalCollected", rs.getBigDecimal("total_collected"));
+                    summary.put("ownerTotal", rs.getInt("owner_total"));
+                    summary.put("ownerPaid", rs.getInt("owner_paid"));
+                    summary.put("ownerCollected", rs.getBigDecimal("owner_collected"));
+                    summary.put("renterTotal", rs.getInt("renter_total"));
+                    summary.put("renterPaid", rs.getInt("renter_paid"));
+                    summary.put("renterCollected", rs.getBigDecimal("renter_collected"));
+                    summary.put("cashCollected", rs.getBigDecimal("cash_collected"));
+                    summary.put("onlineCollected", rs.getBigDecimal("online_collected"));
                 }
             }
         }

@@ -22,6 +22,27 @@ public class SchemaMigrator {
             // Create society_rooms table for vargani tracker
             createSocietyRoomsTable(conn);
 
+            // Add resident_type column to society_rooms (OWNER vs RENTER separation)
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "ALTER TABLE society_rooms ADD COLUMN IF NOT EXISTS resident_type VARCHAR(10) DEFAULT 'RENTER'")) {
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                System.err.println("[SchemaMigrator] resident_type column: " + e.getMessage());
+            }
+            // Backfill: floor 0 = OWNER
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE society_rooms SET resident_type = 'OWNER' WHERE floor_number = 0 AND (resident_type IS NULL OR resident_type = 'RENTER')")) {
+                ps.executeUpdate();
+            } catch (SQLException ignore) {}
+
+            // Add payment_method column to society_rooms for cash/online tracking
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "ALTER TABLE society_rooms ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20)")) {
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                System.err.println("[SchemaMigrator] payment_method column: " + e.getMessage());
+            }
+
             // Add room_number and floor_number columns to contributions (for vargani-to-room sync)
             try (PreparedStatement ps = conn.prepareStatement(
                     "ALTER TABLE contributions ADD COLUMN IF NOT EXISTS room_number VARCHAR(20), ADD COLUMN IF NOT EXISTS floor_number INT, ADD COLUMN IF NOT EXISTS phone VARCHAR(20)")) {

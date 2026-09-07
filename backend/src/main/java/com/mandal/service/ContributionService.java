@@ -286,12 +286,14 @@ public class ContributionService {
                 room.setMandalId(mandalId);
                 room.setRoomNumber(roomNumber);
                 room.setFloorNumber(floor);
+                room.setResidentType(floor == 0 ? "OWNER" : "RENTER");
                 room.setResidentName(contribution.getMemberName());
                 if (contribution.getPhone() != null && !contribution.getPhone().isBlank()) {
                     room.setResidentPhone(contribution.getPhone());
                 }
                 room.setVarganiStatus("PAID");
                 room.setAmountPaid(contribution.getAmount());
+                room.setPaymentMethod(contribution.getPaymentMethod() != null ? contribution.getPaymentMethod().name() : null);
                 room = roomDao.insert(room);
                 if (room == null) return;
             }
@@ -301,6 +303,7 @@ public class ContributionService {
             room.setContributionId(contribution.getId());
             room.setMarkedBy(userId);
             room.setMarkedAt(LocalDateTime.now());
+            room.setPaymentMethod(contribution.getPaymentMethod() != null ? contribution.getPaymentMethod().name() : null);
 
             // Update resident name from contribution if room has no name yet
             if ((room.getResidentName() == null || room.getResidentName().isBlank())

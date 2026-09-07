@@ -235,7 +235,7 @@ public class ReportServlet extends HttpServlet {
     }
 
     private void createRoomTrackerSheet(Workbook workbook, Sheet sheet, Long mandalId) throws java.sql.SQLException {
-        List<SocietyRoom> rooms = roomDao.findAll(mandalId, null);
+        List<SocietyRoom> rooms = roomDao.findAll(mandalId, null, null);
 
         CellStyle headerStyle = createHeaderStyle(workbook);
         CellStyle evenRowStyle = createEvenRowStyle(workbook);

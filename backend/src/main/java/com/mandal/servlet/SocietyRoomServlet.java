@@ -56,9 +56,10 @@ public class SocietyRoomServlet extends HttpServlet {
                 return;
             }
 
-            // GET /api/rooms?status=PENDING
+            // GET /api/rooms?status=PENDING&type=OWNER
             String status = req.getParameter("status");
-            List<SocietyRoom> rooms = service.getAll(mandalId, status);
+            String type = req.getParameter("type");
+            List<SocietyRoom> rooms = service.getAll(mandalId, status, type);
             JsonUtil.writeOk(resp, ApiResponse.ok(rooms));
 
         } catch (NumberFormatException e) {

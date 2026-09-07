@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, Plus, Check, Clock, AlertCircle, ChevronRight, X, Download, Building2, Trash2, Edit2 } from "lucide-react";
+import { Search, Plus, Check, Clock, AlertCircle, ChevronRight, X, Download, Building2, Trash2, Edit2, Home, Users } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import * as api from "@/api/index";
 import { useAuth } from "@/context/AuthContext";
@@ -13,9 +13,17 @@ const statusConfig = {
   PARTIALLY_PAID: { label: "partiallyPaid", bg: "bg-blue-500/10",    text: "text-blue-600",    icon: AlertCircle, dot: "bg-blue-500" },
 };
 
-/** Floor 0 = Room Owner (landlord), otherwise "Floor N" */
-const floorLabel = (floorNumber, t) =>
-  floorNumber === 0 ? (t("owner") || "Owner") : `${t("floor")} ${floorNumber}`;
+const FLOOR_LABELS = {
+  0: "talMajla",
+  1: "pahilaMajla",
+  2: "dusraMajla",
+  3: "tisraMajla",
+};
+
+const floorLabel = (floorNumber, t) => {
+  if (FLOOR_LABELS[floorNumber]) return t(FLOOR_LABELS[floorNumber]);
+  return `${t("floor")} ${floorNumber}`;
+};
 
 export default function VarganiTrackerPage() {
   const { user } = useAuth();
@@ -25,6 +33,7 @@ export default function VarganiTrackerPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("OWNER"); // OWNER or RENTER
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [editRoom, setEditRoom] = useState(null);
@@ -34,7 +43,9 @@ export default function VarganiTrackerPage() {
 
   const loadData = async () => {
     try {
-      const params = filter !== "ALL" ? { status: filter } : {};
+      const params = {};
+      if (filter !== "ALL") params.status = filter;
+      params.type = activeTab;
       const [roomsRes, summaryRes] = await Promise.all([
         api.getRooms(params),
         api.getRoomsSummary(),
@@ -49,8 +60,9 @@ export default function VarganiTrackerPage() {
   };
 
   useEffect(() => {
+    setLoading(true);
     loadData();
-  }, [filter]);
+  }, [filter, activeTab]);
 
   const filtered = rooms.filter(
     (r) =>
@@ -58,36 +70,86 @@ export default function VarganiTrackerPage() {
       r.residentName?.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Group rooms by room number for visual grouping
+  // ── Grouping logic ──────────────────────────────────────────────────
+  // Owners: group by room number (flat list, no floor subgroups)
+  // Renters: group by floor first, then by room number
   const grouped = {};
-  filtered.forEach((r) => {
-    const key = r.roomNumber;
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(r);
-  });
+  if (activeTab === "OWNER") {
+    // Simple list grouped by room number
+    filtered.forEach((r) => {
+      const key = r.roomNumber;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(r);
+    });
+  } else {
+    // Group by floor
+    filtered.forEach((r) => {
+      const floorKey = r.floorNumber;
+      if (!grouped[floorKey]) grouped[floorKey] = [];
+      grouped[floorKey].push(r);
+    });
+  }
 
-  const totalRooms = summary?.totalRooms ?? 0;
-  const paidCount = summary?.paidCount ?? 0;
-  const pendingCount = summary?.pendingCount ?? 0;
-  const partialCount = summary?.partialCount ?? 0;
+  // Summary values
   const totalCollected = summary?.totalCollected ?? 0;
-  const progress = totalRooms > 0 ? Math.round((paidCount / totalRooms) * 100) : 0;
+  const ownerTotal = summary?.ownerTotal ?? 0;
+  const ownerPaid = summary?.ownerPaid ?? 0;
+  const ownerCollected = summary?.ownerCollected ?? 0;
+  const renterTotal = summary?.renterTotal ?? 0;
+  const renterPaid = summary?.renterPaid ?? 0;
+  const renterCollected = summary?.renterCollected ?? 0;
+  const cashCollected = summary?.cashCollected ?? 0;
+  const onlineCollected = summary?.onlineCollected ?? 0;
+
+  const tabTotal = activeTab === "OWNER" ? ownerTotal : renterTotal;
+  const tabPaid = activeTab === "OWNER" ? ownerPaid : renterPaid;
+  const tabCollected = activeTab === "OWNER" ? ownerCollected : renterCollected;
+  const progress = tabTotal > 0 ? Math.round((tabPaid / tabTotal) * 100) : 0;
 
   return (
     <AppShell title={t("varganiTracker")} subtitle={t("trackerSubtitle")}>
-      {/* Summary Card */}
+
+      {/* ── Tab Switcher: घरमालक / भाडेकरू ─────────────────────────── */}
+      <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-secondary/50 p-1.5">
+        <button
+          onClick={() => { setActiveTab("OWNER"); setFilter("ALL"); }}
+          className={`flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all ${
+            activeTab === "OWNER"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Home className="h-4 w-4" />
+          {t("gharmalak")}
+        </button>
+        <button
+          onClick={() => { setActiveTab("RENTER"); setFilter("ALL"); }}
+          className={`flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all ${
+            activeTab === "RENTER"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Users className="h-4 w-4" />
+          {t("bhadekaru")}
+        </button>
+      </div>
+
+      {/* ── Summary Card ────────────────────────────────────────────── */}
       <section className="ink-panel glow-accent relative overflow-hidden rounded-3xl p-6">
         <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[var(--color-primary)] opacity-30 blur-3xl" />
         <div className="relative">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-ink-foreground/60">
-                {t("trackCollection")}
+                {activeTab === "OWNER" ? t("ekunGharmalak") : t("ekunBhadekaru")}
               </p>
               <p className="font-display tabular mt-2 text-4xl font-semibold text-ink-foreground">
-                {paidCount}/{totalRooms}
+                {tabPaid}/{tabTotal}
               </p>
-              <p className="mt-1 text-sm text-ink-foreground/70">{t("roomsPaid")}</p>
+              <p className="mt-1 text-sm text-ink-foreground/70">
+                {activeTab === "OWNER" ? t("ownersPaid") : t("rentersPaid")}
+              </p>
             </div>
             <div className="flex flex-col items-center">
               {/* Circular progress */}
@@ -110,36 +172,33 @@ export default function VarganiTrackerPage() {
             </div>
           </div>
 
+          {/* Collected amount + cash/online breakdown */}
           <div className="mt-5 grid grid-cols-3 gap-2">
             <div className="rounded-xl border border-ink-foreground/10 bg-ink-foreground/6 px-3 py-2 text-center">
-              <div className="flex items-center justify-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                <p className="text-[10px] uppercase tracking-wider text-ink-foreground/55">{t("paid")}</p>
-              </div>
-              <p className="tabular mt-0.5 text-lg font-semibold text-ink-foreground">{paidCount}</p>
+              <p className="text-[10px] uppercase tracking-wider text-ink-foreground/55">{t("rakkam")}</p>
+              <p className="tabular mt-0.5 text-base font-semibold text-emerald-400">{inr(tabCollected)}</p>
             </div>
             <div className="rounded-xl border border-ink-foreground/10 bg-ink-foreground/6 px-3 py-2 text-center">
-              <div className="flex items-center justify-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                <p className="text-[10px] uppercase tracking-wider text-ink-foreground/55">{t("pending")}</p>
-              </div>
-              <p className="tabular mt-0.5 text-lg font-semibold text-ink-foreground">{pendingCount}</p>
+              <p className="text-[10px] uppercase tracking-wider text-ink-foreground/55">{t("cashJama")}</p>
+              <p className="tabular mt-0.5 text-base font-semibold text-ink-foreground">{inr(cashCollected)}</p>
             </div>
             <div className="rounded-xl border border-ink-foreground/10 bg-ink-foreground/6 px-3 py-2 text-center">
-              <div className="flex items-center justify-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-blue-500" />
-                <p className="text-[10px] uppercase tracking-wider text-ink-foreground/55">{t("partiallyPaid")}</p>
-              </div>
-              <p className="tabular mt-0.5 text-lg font-semibold text-ink-foreground">{partialCount}</p>
+              <p className="text-[10px] uppercase tracking-wider text-ink-foreground/55">{t("onlineJama")}</p>
+              <p className="tabular mt-0.5 text-base font-semibold text-ink-foreground">{inr(onlineCollected)}</p>
             </div>
           </div>
 
-          {totalCollected > 0 && (
-            <div className="mt-3 rounded-xl border border-ink-foreground/10 bg-ink-foreground/6 px-4 py-2.5">
-              <p className="text-[10px] uppercase tracking-wider text-ink-foreground/55">{t("totalRoomsCollected")}</p>
-              <p className="tabular mt-0.5 text-lg font-semibold text-emerald-400">{inr(totalCollected)}</p>
+          {/* Grand total bar */}
+          <div className="mt-3 rounded-xl border border-ink-foreground/10 bg-ink-foreground/6 px-4 py-2.5">
+            <div className="flex justify-between items-center">
+              <p className="text-[10px] uppercase tracking-wider text-ink-foreground/55">{t("ekunVarganiJama")}</p>
+              <p className="tabular text-lg font-semibold text-emerald-400">{inr(totalCollected)}</p>
             </div>
-          )}
+            <div className="flex justify-between items-center mt-0.5">
+              <p className="text-[10px] text-ink-foreground/40">{t("ekunGharmalak")}: {inr(ownerCollected)}</p>
+              <p className="text-[10px] text-ink-foreground/40">{t("ekunBhadekaru")}: {inr(renterCollected)}</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -201,7 +260,7 @@ export default function VarganiTrackerPage() {
         </div>
       </section>
 
-      {/* Room List */}
+      {/* ── Room List ───────────────────────────────────────────────── */}
       <section className="pb-24">
         {loading ? (
           <div className="flex h-40 items-center justify-center">
@@ -223,59 +282,119 @@ export default function VarganiTrackerPage() {
               </button>
             )}
           </div>
-        ) : (
-          <div className="space-y-3">
-            {Object.entries(grouped).map(([roomNum, roomFloors]) => (
+        ) : activeTab === "OWNER" ? (
+          /* ── Owner View: Simple flat list by room number ──────── */
+          <div className="space-y-2">
+            {Object.entries(grouped).map(([roomNum, roomEntries]) => (
               <div key={roomNum} className="surface-lift overflow-hidden rounded-2xl">
-                <div className="flex items-center gap-3 border-b border-border/50 bg-secondary/30 px-4 py-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-display text-sm font-bold text-primary">
-                    {roomNum}
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">Room {roomNum}</p>
-                  <p className="ml-auto text-xs text-muted-foreground">
-                    {roomFloors.filter((f) => f.varganiStatus === "PAID").length}/{roomFloors.length}
-                  </p>
-                </div>
-                <div className="divide-y divide-border/50">
-                  {roomFloors.map((room) => {
-                    const cfg = statusConfig[room.varganiStatus] || statusConfig.PENDING;
-                    const StatusIcon = cfg.icon;
-                    return (
-                      <div
-                        key={room.id}
-                        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-secondary/20 transition-colors"
-                        onClick={() => canEdit && setMarkRoom(room)}
-                      >
-                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${cfg.bg}`}>
-                          <StatusIcon className={`h-4 w-4 ${cfg.text}`} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {room.residentName || <span className="text-muted-foreground italic">No name</span>}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {floorLabel(room.floorNumber, t)}
-                            {room.residentPhone && ` · ${room.residentPhone}`}
-                            {room.notes && ` · ${room.notes}`}
-                          </p>
-                        </div>
-                        <div className="text-right flex items-center gap-2">
-                          {room.amountPaid > 0 && (
-                            <span className="tabular text-sm font-semibold text-emerald-600">
-                              {inr(room.amountPaid)}
-                            </span>
-                          )}
-                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${cfg.bg} ${cfg.text}`}>
-                            {t(cfg.label)}
-                          </span>
-                          {canEdit && <ChevronRight className="h-4 w-4 text-muted-foreground/40" />}
-                        </div>
+                {roomEntries.map((room) => {
+                  const cfg = statusConfig[room.varganiStatus] || statusConfig.PENDING;
+                  const StatusIcon = cfg.icon;
+                  return (
+                    <div
+                      key={room.id}
+                      className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-secondary/20 transition-colors"
+                      onClick={() => canEdit && setMarkRoom(room)}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-display text-sm font-bold text-primary">
+                        {roomNum}
                       </div>
-                    );
-                  })}
-                </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {room.residentName || <span className="text-muted-foreground italic">{t("nav")}</span>}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {t("roomNumber")} {roomNum}
+                          {room.residentPhone && ` · ${room.residentPhone}`}
+                          {room.paymentMethod && ` · ${room.paymentMethod === "CASH" ? t("cashJama") : t("onlineJama")}`}
+                        </p>
+                      </div>
+                      <div className="text-right flex items-center gap-2">
+                        {room.amountPaid > 0 && (
+                          <span className="tabular text-sm font-semibold text-emerald-600">
+                            {inr(room.amountPaid)}
+                          </span>
+                        )}
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${cfg.bg} ${cfg.text}`}>
+                          {t(cfg.label)}
+                        </span>
+                        {canEdit && <ChevronRight className="h-4 w-4 text-muted-foreground/40" />}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ))}
+          </div>
+        ) : (
+          /* ── Renter View: Grouped by floor ────────────────────── */
+          <div className="space-y-4">
+            {Object.entries(grouped)
+              .sort(([a], [b]) => Number(a) - Number(b))
+              .map(([floorNum, floorRooms]) => {
+                const paidInFloor = floorRooms.filter(r => r.varganiStatus === "PAID").length;
+                return (
+                  <div key={floorNum} className="surface-lift overflow-hidden rounded-2xl">
+                    {/* Floor header */}
+                    <div className="flex items-center gap-3 border-b border-border/50 bg-secondary/30 px-4 py-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                        <Building2 className="h-4 w-4 text-primary" />
+                      </div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {floorLabel(Number(floorNum), t)}
+                      </p>
+                      <p className="ml-auto text-xs text-muted-foreground">
+                        {paidInFloor}/{floorRooms.length}
+                      </p>
+                    </div>
+                    {/* Room entries under this floor */}
+                    <div className="divide-y divide-border/50">
+                      {floorRooms
+                        .sort((a, b) => {
+                          const na = parseInt(a.roomNumber) || 999999;
+                          const nb = parseInt(b.roomNumber) || 999999;
+                          return na - nb;
+                        })
+                        .map((room) => {
+                          const cfg = statusConfig[room.varganiStatus] || statusConfig.PENDING;
+                          const StatusIcon = cfg.icon;
+                          return (
+                            <div
+                              key={room.id}
+                              className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-secondary/20 transition-colors"
+                              onClick={() => canEdit && setMarkRoom(room)}
+                            >
+                              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${cfg.bg}`}>
+                                <StatusIcon className={`h-4 w-4 ${cfg.text}`} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-foreground">
+                                  {room.residentName || <span className="text-muted-foreground italic">{t("nav")}</span>}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {t("roomNumber")} {room.roomNumber}
+                                  {room.residentPhone && ` · ${room.residentPhone}`}
+                                  {room.paymentMethod && ` · ${room.paymentMethod === "CASH" ? t("cashJama") : t("onlineJama")}`}
+                                </p>
+                              </div>
+                              <div className="text-right flex items-center gap-2">
+                                {room.amountPaid > 0 && (
+                                  <span className="tabular text-sm font-semibold text-emerald-600">
+                                    {inr(room.amountPaid)}
+                                  </span>
+                                )}
+                                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${cfg.bg} ${cfg.text}`}>
+                                  {t(cfg.label)}
+                                </span>
+                                {canEdit && <ChevronRight className="h-4 w-4 text-muted-foreground/40" />}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         )}
       </section>
@@ -307,6 +426,7 @@ export default function VarganiTrackerPage() {
       {(showAddRoom || editRoom) && (
         <AddRoomSheet
           initialData={editRoom}
+          activeTab={activeTab}
           onClose={() => { setShowAddRoom(false); setEditRoom(null); }}
           onSuccess={() => { setShowAddRoom(false); setEditRoom(null); loadData(); }}
         />
@@ -348,7 +468,7 @@ function BulkAddSheet({ onClose, onSuccess }) {
         includeOwner: form.includeOwner,
       });
       setResult(res.data?.count || res.message);
-      setTimeout(() => onSuccess(), 1200);
+      setTimeout(onSuccess, 1200);
     } catch (err) {
       setError(err.message || "Failed to create rooms");
     } finally {
@@ -357,99 +477,80 @@ function BulkAddSheet({ onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center">
-      <button onClick={onClose} className="absolute inset-0 bg-foreground/45 backdrop-blur-sm animate-in fade-in" />
-      <div className="relative w-full max-w-xl animate-in slide-in-from-bottom-6 duration-300">
-        <div className="glass rounded-t-3xl px-5 pb-8 pt-4">
-          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/40" />
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold">{t("bulkAdd")}</h2>
-            <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {error && (
-            <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">{error}</div>
-          )}
-
-          {result ? (
-            <div className="rounded-xl bg-emerald-500/10 p-4 text-center">
-              <Check className="mx-auto h-8 w-8 text-emerald-600 mb-2" />
-              <p className="text-sm font-semibold text-emerald-700">{result} rooms created!</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">{t("roomFrom")}</label>
-                  <input required type="number" min="1" value={form.roomStart}
-                    onChange={(e) => setForm({ ...form, roomStart: e.target.value })}
-                    className="w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary"
-                    placeholder="1" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">{t("roomTo")}</label>
-                  <input required type="number" min="1" value={form.roomEnd}
-                    onChange={(e) => setForm({ ...form, roomEnd: e.target.value })}
-                    className="w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary"
-                    placeholder="20" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">{t("floorFrom")}</label>
-                  <input required type="number" min="1" value={form.floorStart}
-                    onChange={(e) => setForm({ ...form, floorStart: e.target.value })}
-                    className="w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary"
-                    placeholder="1" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">{t("floorTo")}</label>
-                  <input required type="number" min="1" value={form.floorEnd}
-                    onChange={(e) => setForm({ ...form, floorEnd: e.target.value })}
-                    className="w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary"
-                    placeholder="3" />
-                </div>
-              </div>
-
-              <label className="flex items-center gap-3 cursor-pointer rounded-xl bg-secondary/50 px-4 py-3">
-                <input type="checkbox" checked={form.includeOwner}
-                  onChange={(e) => setForm({ ...form, includeOwner: e.target.checked })}
-                  className="h-5 w-5 rounded-md border-2 border-input accent-primary" />
-                <span className="text-sm font-medium text-foreground">
-                  👑 {t("includeOwner") || "Include Room Owner"}
-                  <span className="block text-[11px] text-muted-foreground font-normal mt-0.5">
-                    {t("includeOwnerDesc") || "Add an owner entry (floor 0) for each room — for cases where the landlord also pays vargani"}
-                  </span>
-                </span>
-              </label>
-
-              <p className="text-xs text-muted-foreground text-center">
-                This will create {((Number(form.roomEnd) - Number(form.roomStart) + 1) * (Number(form.floorEnd) - Number(form.floorStart) + 1 + (form.includeOwner ? 1 : 0))) || 0} room entries{form.includeOwner ? " (incl. owner per room)" : ""}. Duplicates will be skipped.
-              </p>
-
-              <button type="submit" disabled={loading}
-                className="accent-gradient mt-2 flex min-h-[48px] w-full items-center justify-center rounded-2xl text-sm font-semibold text-primary-foreground disabled:opacity-70">
-                {loading ? t("creating") : t("createRooms")}
-              </button>
-            </form>
-          )}
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="w-full max-w-xl rounded-t-3xl bg-background p-6 animate-in slide-in-from-bottom"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-display text-lg font-semibold">{t("bulkAdd")}</h3>
+          <button onClick={onClose} className="rounded-full p-2 hover:bg-secondary"><X className="h-5 w-5" /></button>
         </div>
+
+        {result ? (
+          <div className="py-8 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
+              <Check className="h-7 w-7 text-emerald-500" />
+            </div>
+            <p className="font-display text-lg font-semibold">{result} rooms created!</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">{t("roomFrom")}</label>
+                <input type="number" value={form.roomStart} onChange={(e) => setForm({ ...form, roomStart: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" required />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">{t("roomTo")}</label>
+                <input type="number" value={form.roomEnd} onChange={(e) => setForm({ ...form, roomEnd: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" required />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">{t("floorFrom")}</label>
+                <input type="number" value={form.floorStart} onChange={(e) => setForm({ ...form, floorStart: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" required />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">{t("floorTo")}</label>
+                <input type="number" value={form.floorEnd} onChange={(e) => setForm({ ...form, floorEnd: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" required />
+              </div>
+            </div>
+
+            {/* Include Owner checkbox */}
+            <label className="flex items-start gap-3 rounded-xl border border-input p-3 cursor-pointer">
+              <input type="checkbox" checked={form.includeOwner} onChange={(e) => setForm({ ...form, includeOwner: e.target.checked })}
+                className="mt-0.5 h-5 w-5 rounded accent-[var(--color-primary)]" />
+              <div>
+                <p className="text-sm font-medium">{t("includeOwner")}</p>
+                <p className="text-xs text-muted-foreground">{t("includeOwnerDesc")}</p>
+              </div>
+            </label>
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
+
+            <button type="submit" disabled={loading}
+              className="accent-gradient flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+              {loading ? t("creating") : t("createRooms")}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Add/Edit Room Sheet ────────────────────────────────────────────────────
+// ─── Add / Edit Room Sheet ──────────────────────────────────────────────────
 
-function AddRoomSheet({ onClose, onSuccess, initialData }) {
+function AddRoomSheet({ initialData, activeTab, onClose, onSuccess }) {
   const { t } = useLang();
-  const isEdit = !!initialData;
-  const [isOwner, setIsOwner] = useState(initialData?.floorNumber === 0);
   const [form, setForm] = useState({
     roomNumber: initialData?.roomNumber || "",
-    floorNumber: initialData?.floorNumber === 0 ? "0" : (initialData?.floorNumber || "1"),
+    floorNumber: initialData?.floorNumber ?? (activeTab === "OWNER" ? 0 : 1),
     residentName: initialData?.residentName || "",
     residentPhone: initialData?.residentPhone || "",
     notes: initialData?.notes || "",
@@ -462,91 +563,66 @@ function AddRoomSheet({ onClose, onSuccess, initialData }) {
     setError("");
     setLoading(true);
     try {
-      const payload = { ...form, floorNumber: isOwner ? 0 : Number(form.floorNumber) };
-      if (isEdit) {
-        await api.updateRoom(initialData.id, payload);
+      if (initialData) {
+        await api.updateRoom(initialData.id, form);
       } else {
-        await api.addRoom(payload);
+        await api.addRoom(form);
       }
       onSuccess();
     } catch (err) {
-      setError(err.message || "Failed to save room");
+      setError(err.message || "Failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center">
-      <button onClick={onClose} className="absolute inset-0 bg-foreground/45 backdrop-blur-sm animate-in fade-in" />
-      <div className="relative w-full max-w-xl animate-in slide-in-from-bottom-6 duration-300">
-        <div className="glass rounded-t-3xl px-5 pb-8 pt-4">
-          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/40" />
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold">{isEdit ? t("editRoom") : t("addRoom")}</h2>
-            <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
-              <X className="h-4 w-4" />
-            </button>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="w-full max-w-xl rounded-t-3xl bg-background p-6 animate-in slide-in-from-bottom"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-display text-lg font-semibold">{initialData ? t("editRoom") : t("addRoom")}</h3>
+          <button onClick={onClose} className="rounded-full p-2 hover:bg-secondary"><X className="h-5 w-5" /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">{t("roomNumber")}</label>
+              <input type="text" value={form.roomNumber} onChange={(e) => setForm({ ...form, roomNumber: e.target.value })}
+                className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" required />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">{t("floor")}</label>
+              <input type="number" value={form.floorNumber} onChange={(e) => setForm({ ...form, floorNumber: Number(e.target.value) })}
+                className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" required />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">{t("residentName")}</label>
+            <input type="text" value={form.residentName} onChange={(e) => setForm({ ...form, residentName: e.target.value })}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">{t("residentPhone")}</label>
+            <input type="tel" value={form.residentPhone} onChange={(e) => setForm({ ...form, residentPhone: e.target.value })}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">{t("addNotes")}</label>
+            <input type="text" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" />
           </div>
 
-          {error && (
-            <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">{error}</div>
-          )}
+          {error && <p className="text-sm text-red-500">{error}</p>}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">{t("roomNumber")}</label>
-                <input required type="text" value={form.roomNumber}
-                  onChange={(e) => setForm({ ...form, roomNumber: e.target.value })}
-                  className="w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary"
-                  placeholder="4" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">{t("floor")}</label>
-                {isOwner ? (
-                  <div className="w-full rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary font-medium">
-                    👑 {t("owner") || "Owner"}
-                  </div>
-                ) : (
-                  <input required type="number" min="1" value={form.floorNumber}
-                    onChange={(e) => setForm({ ...form, floorNumber: e.target.value })}
-                    className="w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary"
-                    placeholder="1" />
-                )}
-              </div>
-            </div>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={isOwner}
-                onChange={(e) => {
-                  setIsOwner(e.target.checked);
-                  if (e.target.checked) setForm({ ...form, floorNumber: "0" });
-                  else setForm({ ...form, floorNumber: "1" });
-                }}
-                className="h-5 w-5 rounded-md border-2 border-input accent-primary" />
-              <span className="text-sm font-medium text-foreground">👑 {t("owner") || "Owner"} <span className="text-muted-foreground font-normal text-xs">({t("roomOwnerDesc") || "Room owner / landlord"})</span></span>
-            </label>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">{t("residentName")}</label>
-              <input type="text" value={form.residentName}
-                onChange={(e) => setForm({ ...form, residentName: e.target.value })}
-                className="w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary"
-                placeholder="Jadhav Family" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">{t("residentPhone")}</label>
-              <input type="tel" value={form.residentPhone}
-                onChange={(e) => setForm({ ...form, residentPhone: e.target.value })}
-                className="w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary"
-                placeholder="9876543210" />
-            </div>
-
-            <button type="submit" disabled={loading}
-              className="accent-gradient mt-2 flex min-h-[48px] w-full items-center justify-center rounded-2xl text-sm font-semibold text-primary-foreground disabled:opacity-70">
-              {loading ? t("saving") : isEdit ? t("saveChanges") : t("addRoom")}
-            </button>
-          </form>
-        </div>
+          <button type="submit" disabled={loading}
+            className="accent-gradient flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            {loading ? t("saving") : t("saveChanges")}
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -556,26 +632,24 @@ function AddRoomSheet({ onClose, onSuccess, initialData }) {
 
 function MarkStatusSheet({ room, onClose, onSuccess, onEdit, onDelete }) {
   const { t } = useLang();
-  const [status, setStatus] = useState(room.varganiStatus || "PENDING");
-  const [amountPaid, setAmountPaid] = useState(room.amountPaid || "");
+  const [status, setStatus] = useState(room.varganiStatus);
+  const [amount, setAmount] = useState(room.amountPaid || "");
   const [notes, setNotes] = useState(room.notes || "");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
     try {
       await api.markRoomStatus(room.id, {
-        status,
-        amountPaid: amountPaid ? Number(amountPaid) : 0,
-        notes: notes || null,
+        varganiStatus: status,
+        amountPaid: Number(amount) || 0,
+        notes,
       });
       onSuccess();
     } catch (err) {
-      setError(err.message || "Failed to update status");
+      alert(err.message);
     } finally {
       setLoading(false);
     }
@@ -588,7 +662,7 @@ function MarkStatusSheet({ room, onClose, onSuccess, onEdit, onDelete }) {
       await api.deleteRoom(room.id);
       onDelete();
     } catch (err) {
-      setError(err.message || "Failed to delete");
+      alert(err.message);
     } finally {
       setDeleting(false);
     }
@@ -597,101 +671,84 @@ function MarkStatusSheet({ room, onClose, onSuccess, onEdit, onDelete }) {
   const cfg = statusConfig[room.varganiStatus] || statusConfig.PENDING;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center">
-      <button onClick={onClose} className="absolute inset-0 bg-foreground/45 backdrop-blur-sm animate-in fade-in" />
-      <div className="relative w-full max-w-xl animate-in slide-in-from-bottom-6 duration-300">
-        <div className="glass rounded-t-3xl px-5 pb-8 pt-4">
-          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/40" />
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="w-full max-w-xl rounded-t-3xl bg-background p-6 animate-in slide-in-from-bottom"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-display text-lg font-semibold">
+              {t("roomNumber")} {room.roomNumber}
+              {room.residentType === "OWNER"
+                ? ` · ${t("gharmalak")}`
+                : ` · ${floorLabel(room.floorNumber, t)}`}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {room.residentName || "—"}
+              {room.residentPhone && ` · ${room.residentPhone}`}
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-full p-2 hover:bg-secondary"><X className="h-5 w-5" /></button>
+        </div>
 
-          {/* Room info header */}
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 font-display text-lg font-bold text-primary">
-              {room.roomNumber}
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-foreground">
-                Room {room.roomNumber} · {floorLabel(room.floorNumber, t)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {room.residentName || "No resident name"}
-              </p>
-            </div>
-            <div className="flex gap-1.5">
-              <button onClick={onEdit}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-primary transition-colors">
-                <Edit2 className="h-4 w-4" />
-              </button>
-              <button onClick={handleDelete} disabled={deleting}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors">
-                <Trash2 className="h-4 w-4" />
-              </button>
-              <button onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Status selector */}
+          <div className="grid grid-cols-3 gap-2">
+            {["PAID", "PENDING", "PARTIALLY_PAID"].map((s) => {
+              const sc = statusConfig[s];
+              const active = status === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => {
+                    setStatus(s);
+                    if (s === "PENDING") setAmount("0");
+                  }}
+                  className={`rounded-xl border-2 px-3 py-2.5 text-center text-xs font-semibold transition-colors ${
+                    active
+                      ? `border-current ${sc.text} ${sc.bg}`
+                      : "border-transparent bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  {t(sc.label)}
+                </button>
+              );
+            })}
           </div>
 
-          {error && (
-            <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">{error}</div>
-          )}
+          {/* Amount */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">{t("amountPaid")} (₹)</label>
+            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" />
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Status pills */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">{t("status")}</label>
-              <div className="flex gap-2">
-                {[
-                  { val: "PAID", label: t("paid"), color: "emerald" },
-                  { val: "PARTIALLY_PAID", label: t("partiallyPaid"), color: "blue" },
-                  { val: "PENDING", label: t("pending"), color: "amber" },
-                ].map(({ val, label, color }) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setStatus(val)}
-                    className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition-all ${
-                      status === val
-                        ? `bg-${color}-500 text-white shadow-lg`
-                        : `bg-${color}-500/10 text-${color}-600`
-                    }`}
-                    style={status === val ? {
-                      backgroundColor: color === "emerald" ? "#10b981" : color === "blue" ? "#3b82f6" : "#f59e0b",
-                      color: "white",
-                    } : {}}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Notes */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">{t("addNotes")}</label>
+            <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm" />
+          </div>
 
-            {/* Amount */}
-            {status !== "PENDING" && (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">{t("amountPaid")} (₹)</label>
-                <input type="number" min="0" value={amountPaid}
-                  onChange={(e) => setAmountPaid(e.target.value)}
-                  className="w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary"
-                  placeholder="501" />
-              </div>
-            )}
+          <button type="submit" disabled={loading}
+            className="accent-gradient flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            {loading ? t("saving") : t("updateStatus")}
+          </button>
 
-            {/* Notes */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">{t("addNotes")}</label>
-              <input type="text" value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary"
-                placeholder="Will pay next week..." />
-            </div>
-
-            <button type="submit" disabled={loading}
-              className="accent-gradient mt-2 flex min-h-[48px] w-full items-center justify-center rounded-2xl text-sm font-semibold text-primary-foreground disabled:opacity-70">
-              {loading ? t("saving") : t("updateStatus")}
+          {/* Edit / Delete row */}
+          <div className="flex gap-3">
+            <button type="button" onClick={onEdit}
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-input py-3 text-sm font-medium text-foreground hover:bg-secondary">
+              <Edit2 className="h-4 w-4" /> {t("editRoom")}
             </button>
-          </form>
-        </div>
+            <button type="button" onClick={handleDelete} disabled={deleting}
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-red-500/30 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 disabled:opacity-50">
+              <Trash2 className="h-4 w-4" /> {t("delete")}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
