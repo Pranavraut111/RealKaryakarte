@@ -27,7 +27,7 @@ export function AppShell({ title, subtitle, mandalName: propMandalName, children
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Logo" className="h-14 w-14 rounded-2xl object-contain shrink-0" />
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-clip-text text-transparent">
+              <p className="text-sm font-extrabold uppercase tracking-[0.15em] bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-clip-text text-transparent">
                 {displayMandalName}
               </p>
               <h1 className="font-display mt-0.5 text-3xl leading-tight font-semibold tracking-tight text-foreground">
