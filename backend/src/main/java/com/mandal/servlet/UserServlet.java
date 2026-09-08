@@ -84,6 +84,7 @@ public class UserServlet extends HttpServlet {
                 Map<String, String> body = JsonUtil.readBody(req, Map.class);
                 String newRole = body.get("role");
                 Long mandalId = (Long) req.getAttribute("mandalId");
+                System.out.println("[DEBUG] changeRole: requesterId=" + requesterId + " requesterRole=" + requesterRole + " targetUserId=" + targetUserId + " newRole=" + newRole + " mandalId=" + mandalId);
                 userService.changeRole(targetUserId, newRole, requesterId, requesterRole, mandalId);
                 JsonUtil.writeOk(resp, ApiResponse.ok("Role updated", null));
 
