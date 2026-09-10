@@ -12,6 +12,8 @@ FROM tomcat:10.1-jdk21-temurin
 RUN rm -rf /usr/local/tomcat/webapps/*
 # Copy our WAR as the ROOT app
 COPY --from=build /app/target/*.war /usr/local/tomcat/webapps/ROOT.war
+# Disable the shutdown port to prevent Render healthcheck from spamming "Invalid shutdown command"
+RUN sed -i 's/port="8005"/port="-1"/g' /usr/local/tomcat/conf/server.xml
 # Create data directory for uploads and passwords
 RUN mkdir -p /var/mandal_data/uploads /var/mandal_data/receipts
 # Expose port
