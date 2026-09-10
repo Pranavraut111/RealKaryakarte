@@ -39,7 +39,9 @@ async function request(path, options = {}) {
     if ((res.status === 401 || res.status === 403) && !path.startsWith("/auth/")) {
       const err = await res.json().catch(() => ({ message: res.statusText }));
       if (err.message === "PASSWORD_REQUIRED") {
-        window.location.href = "/set-password";
+        if (window.location.pathname !== "/set-password") {
+          window.location.href = "/set-password";
+        }
         throw new Error("Please set your password.");
       }
       localStorage.removeItem("mandal-token");
