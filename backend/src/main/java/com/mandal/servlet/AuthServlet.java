@@ -30,6 +30,33 @@ import java.util.Map;
 public class AuthServlet extends HttpServlet {
 
     private final AuthService authService = new AuthService();
+    private final com.mandal.dao.MandalDao mandalDao = new com.mandal.dao.MandalDao();
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String path = req.getPathInfo();
+        try {
+            if ("/mandal-lookup".equals(path)) {
+                String code = req.getParameter("code");
+                if (code == null || code.isBlank()) {
+                    JsonUtil.writeError(resp, 400, "Invite code is required");
+                    return;
+                }
+                com.mandal.model.Mandal mandal = mandalDao.findByInviteCode(code);
+                if (mandal == null) {
+                    JsonUtil.writeError(resp, 404, "Mandal not found");
+                    return;
+                }
+                JsonUtil.writeOk(resp, ApiResponse.ok("Mandal found",
+                    java.util.Map.of("mandalName", mandal.getMandalName())));
+            } else {
+                JsonUtil.writeError(resp, 404, "Unknown auth endpoint");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            JsonUtil.writeError(resp, 500, "Internal server error: " + e.getMessage());
+        }
+    }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {

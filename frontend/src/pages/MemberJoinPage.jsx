@@ -1,19 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { memberJoin } from "../api";
+import { memberJoin, lookupMandal } from "../api";
 import { Clock, CheckCircle2 } from "lucide-react";
 
 export default function MemberJoinPage() {
   const navigate = useNavigate();
   const { inviteCode } = useParams();
-  const { login } = useAuth();
+  const { login, token } = useAuth();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [mandalName, setMandalName] = useState("");
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (token) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [token, navigate]);
+
+  // Fetch mandal name from invite code
+  useEffect(() => {
+    if (inviteCode) {
+      lookupMandal(inviteCode)
+        .then((res) => {
+          setMandalName(res.data?.mandalName || "");
+        })
+        .catch(() => {
+          // silently fail — will show generic "Join Mandal"
+        });
+    }
+  }, [inviteCode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -97,7 +118,12 @@ export default function MemberJoinPage() {
             className="w-20 h-20 mx-auto mb-4 rounded-2xl object-contain"
           />
           <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-            Join Mandal
+            Join{" "}
+            {mandalName ? (
+              <span className="text-primary">{mandalName}</span>
+            ) : (
+              "Mandal"
+            )}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Enter your name and phone number to continue

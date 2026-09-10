@@ -61,6 +61,7 @@ public class AuthFilter implements Filter {
 
         // Block PENDING/REJECTED users from all data endpoints
         if (!"APPROVED".equals(approvalStatus) && !"ADMIN".equals(userRole) && !"KARYAKARTA".equals(userRole)) {
+            System.err.println("[AuthFilter] BLOCKED userId=" + userId + " role=" + userRole + " approvalStatus=" + approvalStatus + " path=" + path);
             JsonUtil.writeError(response, 403,
                 "PENDING".equals(approvalStatus)
                     ? "Your account is pending approval from the admin."

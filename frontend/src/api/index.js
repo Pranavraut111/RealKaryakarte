@@ -35,6 +35,14 @@ async function request(path, options = {}) {
     ...options,
   });
   if (!res.ok) {
+    // Auto-logout on auth failures (expired/invalid token)
+    if ((res.status === 401 || res.status === 403) && !path.startsWith("/auth/")) {
+      localStorage.removeItem("mandal-token");
+      localStorage.removeItem("mandal-user");
+      localStorage.removeItem("mandal-name");
+      window.location.href = "/login";
+      throw new Error("Session expired. Please login again.");
+    }
     const err = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(err.message || "Request failed");
   }
@@ -63,6 +71,10 @@ export function memberJoin(name, phone, inviteCode) {
     method: "POST",
     body: JSON.stringify({ name, phone, inviteCode }),
   });
+}
+
+export function lookupMandal(inviteCode) {
+  return request(`/auth/mandal-lookup?code=${encodeURIComponent(inviteCode)}`);
 }
 
 export function loginWithPhone(phone, password) {

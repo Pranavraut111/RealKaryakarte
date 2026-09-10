@@ -4,14 +4,24 @@ import com.lowagie.text.Document;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
 import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 
+import java.awt.Color;
+
 /**
  * PDF generator for contribution receipts using OpenPDF.
+ * Generates a traditional Indian receipt book style PDF.
  */
 public class ReceiptPdfGenerator {
+
+    // Colors
+    private static final Color BORDER_COLOR = new Color(139, 69, 19); // Dark brown border
+    private static final Color HEADER_BG = new Color(255, 248, 240); // Warm cream
+    private static final Color BODY_BG = new Color(255, 253, 250); // Off-white
+    private static final Color ACCENT = new Color(249, 115, 22); // Orange accent
 
     /**
      * Generate a receipt PDF for a contribution.
@@ -31,112 +41,245 @@ public class ReceiptPdfGenerator {
     ) {
         String fileName = receiptNo + "-" + System.currentTimeMillis() + ".pdf";
 
-        Document document = new Document(com.lowagie.text.PageSize.A5.rotate(), 36, 36, 36, 36);
+        Document document = new Document(com.lowagie.text.PageSize.A5.rotate(), 30, 30, 30, 30);
         java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
         try {
             PdfWriter.getInstance(document, baos);
             document.open();
 
-            // Header Table for Logo and Title
-            PdfPTable headerTable = new PdfPTable(2);
-            headerTable.setWidthPercentage(100);
-            headerTable.setWidths(new float[]{1.2f, 4.8f});
+            // ─── Outer Border Table ────────────────────────────────────
+            PdfPTable outerTable = new PdfPTable(1);
+            outerTable.setWidthPercentage(100);
+
+            PdfPCell outerCell = new PdfPCell();
+            outerCell.setBorderWidth(2.5f);
+            outerCell.setBorderColor(BORDER_COLOR);
+            outerCell.setPadding(15);
+            outerCell.setBackgroundColor(BODY_BG);
+
+            // ─── Inner Border Table ────────────────────────────────────
+            PdfPTable innerTable = new PdfPTable(1);
+            innerTable.setWidthPercentage(100);
+
+            PdfPCell innerCell = new PdfPCell();
+            innerCell.setBorderWidth(1f);
+            innerCell.setBorderColor(BORDER_COLOR);
+            innerCell.setPadding(20);
+
+            // ═══ HEADER SECTION ═══════════════════════════════════════
+            PdfPTable headerRow = new PdfPTable(2);
+            headerRow.setWidthPercentage(100);
+            headerRow.setWidths(new float[]{3f, 2f});
+
+            // Left: Logo + Mandal Name
+            PdfPCell leftHeader = new PdfPCell();
+            leftHeader.setBorder(0);
+            leftHeader.setVerticalAlignment(Element.ALIGN_MIDDLE);
 
             try {
                 com.lowagie.text.Image logo = com.lowagie.text.Image.getInstance("/Users/pranavraut/RealKaryakarte/frontend/public/recieptlogo.png");
-                logo.scaleToFit(70, 70);
+                logo.scaleToFit(50, 50);
+                PdfPTable logoNameTable = new PdfPTable(2);
+                logoNameTable.setWidths(new float[]{1f, 4f});
+
                 PdfPCell logoCell = new PdfPCell(logo);
                 logoCell.setBorder(0);
-                logoCell.setHorizontalAlignment(Element.ALIGN_CENTER);
                 logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                headerTable.addCell(logoCell);
+                logoCell.setPaddingRight(8);
+                logoNameTable.addCell(logoCell);
+
+                Font mandalFont = new Font(Font.HELVETICA, 14, Font.BOLD, BORDER_COLOR);
+                PdfPCell nameCell = new PdfPCell(new Phrase(mandalName, mandalFont));
+                nameCell.setBorder(0);
+                nameCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                logoNameTable.addCell(nameCell);
+
+                leftHeader.addElement(logoNameTable);
             } catch (Exception e) {
-                PdfPCell empty = new PdfPCell(new Paragraph(""));
-                empty.setBorder(0);
-                headerTable.addCell(empty);
+                Font mandalFont = new Font(Font.HELVETICA, 16, Font.BOLD, BORDER_COLOR);
+                leftHeader.addElement(new Paragraph(mandalName, mandalFont));
             }
 
-            PdfPCell textCell = new PdfPCell();
-            textCell.setBorder(0);
-            textCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            
-            Font titleFont = new Font(Font.HELVETICA, 18, Font.BOLD);
-            Paragraph title = new Paragraph(mandalName, titleFont);
-            textCell.addElement(title);
-            
-            Font subTitleFont = new Font(Font.HELVETICA, 11, Font.NORMAL);
-            Paragraph subTitle = new Paragraph("Contribution Receipt (Vargani)", subTitleFont);
-            subTitle.setSpacingBefore(3f);
-            textCell.addElement(subTitle);
-            
-            headerTable.addCell(textCell);
-            document.add(headerTable);
-            
-            document.add(new Paragraph("\n"));
-            com.lowagie.text.pdf.draw.LineSeparator ls = new com.lowagie.text.pdf.draw.LineSeparator();
-            document.add(ls);
-            document.add(new Paragraph("\n"));
+            headerRow.addCell(leftHeader);
 
-            // Table with details
-            PdfPTable table = new PdfPTable(2);
-            table.setWidthPercentage(100);
-            table.setSpacingBefore(5f);
-            table.setSpacingAfter(10f);
+            // Right: Receipt No + Date boxes
+            PdfPCell rightHeader = new PdfPCell();
+            rightHeader.setBorder(0);
+            rightHeader.setHorizontalAlignment(Element.ALIGN_RIGHT);
 
-            addTableRow(table, "Name:", memberName, true);
-            addTableRow(table, "Receipt No:", receiptNo, false);
-            addTableRow(table, "Date:", date, true);
-            addTableRow(table, "Amount:", "INR " + amount, false);
-            addTableRow(table, "Payment Method:", paymentMethod, true);
+            PdfPTable noDateTable = new PdfPTable(2);
+            noDateTable.setWidths(new float[]{1f, 1f});
+
+            Font labelSmall = new Font(Font.HELVETICA, 8, Font.BOLD, Color.GRAY);
+            Font valueSmall = new Font(Font.HELVETICA, 10, Font.BOLD, Color.BLACK);
+
+            // No. box
+            PdfPCell noLabelCell = new PdfPCell(new Phrase("No.", labelSmall));
+            noLabelCell.setBorder(0);
+            noLabelCell.setPaddingBottom(2);
+            noDateTable.addCell(noLabelCell);
+
+            PdfPCell dateLabelCell = new PdfPCell(new Phrase("Date", labelSmall));
+            dateLabelCell.setBorder(0);
+            dateLabelCell.setPaddingBottom(2);
+            noDateTable.addCell(dateLabelCell);
+
+            PdfPCell noValueCell = new PdfPCell(new Phrase(receiptNo, valueSmall));
+            noValueCell.setBorderWidth(1f);
+            noValueCell.setBorderColor(Color.GRAY);
+            noValueCell.setPadding(6);
+            noValueCell.setBackgroundColor(HEADER_BG);
+            noDateTable.addCell(noValueCell);
+
+            PdfPCell dateValueCell = new PdfPCell(new Phrase(date, valueSmall));
+            dateValueCell.setBorderWidth(1f);
+            dateValueCell.setBorderColor(Color.GRAY);
+            dateValueCell.setPadding(6);
+            dateValueCell.setBackgroundColor(HEADER_BG);
+            noDateTable.addCell(dateValueCell);
+
+            rightHeader.addElement(noDateTable);
+            headerRow.addCell(rightHeader);
+
+            innerCell.addElement(headerRow);
+
+            // Separator line
+            innerCell.addElement(new Paragraph("\n"));
+            com.lowagie.text.pdf.draw.LineSeparator sep = new com.lowagie.text.pdf.draw.LineSeparator(1, 100, BORDER_COLOR, Element.ALIGN_CENTER, -2);
+            Paragraph sepPara = new Paragraph();
+            sepPara.add(sep);
+            innerCell.addElement(sepPara);
+            innerCell.addElement(new Paragraph("\n"));
+
+            // ═══ RECEIPT TITLE ════════════════════════════════════════
+            Font receiptTitleFont = new Font(Font.HELVETICA, 12, Font.BOLD, ACCENT);
+            Paragraph receiptTitle = new Paragraph("RECEIPT / पावती", receiptTitleFont);
+            receiptTitle.setAlignment(Element.ALIGN_CENTER);
+            receiptTitle.setSpacingAfter(15);
+            innerCell.addElement(receiptTitle);
+
+            // ═══ BODY — Traditional format ════════════════════════════
+            Font bodyFont = new Font(Font.HELVETICA, 11, Font.NORMAL, Color.BLACK);
+            Font bodyBold = new Font(Font.HELVETICA, 11, Font.BOLD, Color.BLACK);
+            Font bodyUnderline = new Font(Font.HELVETICA, 11, Font.UNDERLINE | Font.BOLD, ACCENT);
+
+            // "RECEIVED with thanks from ___"
+            Paragraph line1 = new Paragraph();
+            line1.add(new Phrase("RECEIVED with thanks from  ", bodyFont));
+            line1.add(new Phrase(memberName, bodyUnderline));
+            line1.setSpacingAfter(12);
+            innerCell.addElement(line1);
+
+            // Room info if available
             if (roomNumber != null && !roomNumber.isBlank()) {
-                String floorLabel = (floorNumber != null && floorNumber == 0) ? "Owner" : (floorNumber != null ? String.valueOf(floorNumber) : "-");
-                addTableRow(table, "Room / Floor:", "Room " + roomNumber + " · " + floorLabel, false);
+                String floorLabel = (floorNumber != null && floorNumber == 0) ? "Owner" : (floorNumber != null ? "Floor " + floorNumber : "");
+                Paragraph roomLine = new Paragraph();
+                roomLine.add(new Phrase("Room No.  ", bodyFont));
+                roomLine.add(new Phrase(roomNumber + "  ·  " + floorLabel, bodyBold));
+                roomLine.setSpacingAfter(12);
+                innerCell.addElement(roomLine);
             }
 
-            document.add(table);
+            // "the sum of Rupees ___"
+            String amountInWords = numberToWords(Long.parseLong(amount.replace(",", "").split("\\.")[0]));
+            Paragraph line2 = new Paragraph();
+            line2.add(new Phrase("the sum of Rupees  ", bodyFont));
+            line2.add(new Phrase(amountInWords, bodyBold));
+            line2.setSpacingAfter(8);
+            innerCell.addElement(line2);
 
-            document.add(new Paragraph("\n"));
+            // Amount box
+            Font amountFont = new Font(Font.HELVETICA, 16, Font.BOLD, ACCENT);
+            Paragraph amountPara = new Paragraph();
+            amountPara.add(new Phrase("₹ ", amountFont));
+            amountPara.add(new Phrase(amount + " /-", amountFont));
+            amountPara.setAlignment(Element.ALIGN_RIGHT);
+            amountPara.setSpacingAfter(12);
+            innerCell.addElement(amountPara);
 
-            // Footer / Signatures
+            // "by cheque / draft / cash, in full / part / advance"
+            Paragraph line3 = new Paragraph();
+            line3.add(new Phrase("by  ", bodyFont));
+            line3.add(new Phrase(paymentMethod, bodyBold));
+            line3.add(new Phrase("  ,  in full", bodyFont));
+            line3.setSpacingAfter(20);
+            innerCell.addElement(line3);
+
+            // ═══ FOOTER — Stamp + Signature ══════════════════════════
             PdfPTable footerTable = new PdfPTable(3);
             footerTable.setWidthPercentage(100);
-            footerTable.setWidths(new float[]{1, 1.5f, 1});
+            footerTable.setWidths(new float[]{2f, 1.5f, 2f});
 
-            PdfPCell c1 = new PdfPCell();
-            c1.setBorder(0);
-            footerTable.addCell(c1); // Empty left
+            // Mandal stamp area
+            PdfPCell stampCell = new PdfPCell();
+            stampCell.setBorder(0);
+            stampCell.setVerticalAlignment(Element.ALIGN_BOTTOM);
 
-            Font footerFont = new Font(Font.HELVETICA, 9, Font.ITALIC);
-            Paragraph footer = new Paragraph("|| Shree Ganeshay Namah ||\nThank you for your generous contribution!\nThis is a system generated receipt.", footerFont);
-            footer.setAlignment(Element.ALIGN_CENTER);
-            PdfPCell c2 = new PdfPCell(footer);
-            c2.setBorder(0);
-            c2.setHorizontalAlignment(Element.ALIGN_CENTER);
-            c2.setVerticalAlignment(Element.ALIGN_BOTTOM);
-            footerTable.addCell(c2);
+            Font stampFont = new Font(Font.HELVETICA, 8, Font.BOLD, BORDER_COLOR);
+            Paragraph stampText = new Paragraph(mandalName, stampFont);
+            stampText.setAlignment(Element.ALIGN_CENTER);
+            stampCell.addElement(stampText);
 
-            PdfPCell c3 = new PdfPCell();
-            c3.setBorder(0);
-            c3.setHorizontalAlignment(Element.ALIGN_CENTER);
-            c3.setVerticalAlignment(Element.ALIGN_BOTTOM);
-            
-            Font signFont = new Font(Font.HELVETICA, 10, Font.BOLDITALIC);
-            Paragraph sign = new Paragraph(collectorName, signFont);
-            sign.setAlignment(Element.ALIGN_CENTER);
-            c3.addElement(sign);
-            
-            com.lowagie.text.pdf.draw.LineSeparator line = new com.lowagie.text.pdf.draw.LineSeparator(1, 80, java.awt.Color.BLACK, Element.ALIGN_CENTER, -5);
-            c3.addElement(line);
-            
-            Font labelFont = new Font(Font.HELVETICA, 9, Font.NORMAL);
-            Paragraph label = new Paragraph("Authorized Signatory", labelFont);
-            label.setAlignment(Element.ALIGN_CENTER);
-            label.setSpacingBefore(5f);
-            c3.addElement(label);
-            
-            footerTable.addCell(c3);
+            com.lowagie.text.pdf.draw.LineSeparator stampLine = new com.lowagie.text.pdf.draw.LineSeparator(0.5f, 90, Color.GRAY, Element.ALIGN_CENTER, -3);
+            Paragraph stampLinePara = new Paragraph();
+            stampLinePara.add(stampLine);
+            stampCell.addElement(stampLinePara);
 
-            document.add(footerTable);
+            Font tinyFont = new Font(Font.HELVETICA, 7, Font.ITALIC, Color.GRAY);
+            Paragraph stampLabel = new Paragraph("Mandal Seal", tinyFont);
+            stampLabel.setAlignment(Element.ALIGN_CENTER);
+            stampLabel.setSpacingBefore(3);
+            stampCell.addElement(stampLabel);
+
+            footerTable.addCell(stampCell);
+
+            // Center — Thank you message
+            PdfPCell centerCell = new PdfPCell();
+            centerCell.setBorder(0);
+            centerCell.setVerticalAlignment(Element.ALIGN_BOTTOM);
+
+            Font thankFont = new Font(Font.HELVETICA, 7, Font.ITALIC, Color.GRAY);
+            Paragraph thankText = new Paragraph("|| श्री गणेशाय नमः ||\nThank you for your\ngenerous contribution!", thankFont);
+            thankText.setAlignment(Element.ALIGN_CENTER);
+            centerCell.addElement(thankText);
+            footerTable.addCell(centerCell);
+
+            // Right — Authorized Signatory
+            PdfPCell signCell = new PdfPCell();
+            signCell.setBorder(0);
+            signCell.setVerticalAlignment(Element.ALIGN_BOTTOM);
+
+            Font signNameFont = new Font(Font.HELVETICA, 10, Font.BOLDITALIC, Color.BLACK);
+            Paragraph signName = new Paragraph(collectorName != null ? collectorName : "", signNameFont);
+            signName.setAlignment(Element.ALIGN_CENTER);
+            signCell.addElement(signName);
+
+            com.lowagie.text.pdf.draw.LineSeparator signLine = new com.lowagie.text.pdf.draw.LineSeparator(1, 80, Color.BLACK, Element.ALIGN_CENTER, -3);
+            Paragraph signLinePara = new Paragraph();
+            signLinePara.add(signLine);
+            signCell.addElement(signLinePara);
+
+            Font signLabelFont = new Font(Font.HELVETICA, 8, Font.NORMAL, Color.GRAY);
+            Paragraph signLabel = new Paragraph("Authorized Signatory", signLabelFont);
+            signLabel.setAlignment(Element.ALIGN_CENTER);
+            signLabel.setSpacingBefore(3);
+            signCell.addElement(signLabel);
+
+            footerTable.addCell(signCell);
+            innerCell.addElement(footerTable);
+
+            // ─── Note at bottom ────────────────────────────────────────
+            innerCell.addElement(new Paragraph("\n"));
+            Font noteFont = new Font(Font.HELVETICA, 6, Font.ITALIC, Color.GRAY);
+            Paragraph note = new Paragraph("This is a system generated receipt. · Subject to realisation of cheque.", noteFont);
+            note.setAlignment(Element.ALIGN_CENTER);
+            innerCell.addElement(note);
+
+            // Assemble
+            innerTable.addCell(innerCell);
+            outerCell.addElement(innerTable);
+            outerTable.addCell(outerCell);
+            document.add(outerTable);
 
             document.close();
             
@@ -152,25 +295,50 @@ public class ReceiptPdfGenerator {
         }
     }
 
-    private static void addTableRow(PdfPTable table, String label, String value, boolean isZebra) {
-        Font bold = new Font(Font.HELVETICA, 11, Font.BOLD);
-        Font normal = new Font(Font.HELVETICA, 11, Font.NORMAL);
-        
-        PdfPCell cell1 = new PdfPCell(new Paragraph(label, bold));
-        cell1.setBorderWidth(0);
-        cell1.setBorderWidthBottom(0.5f);
-        cell1.setBorderColorBottom(java.awt.Color.LIGHT_GRAY);
-        cell1.setPadding(8);
-        if (isZebra) cell1.setBackgroundColor(new java.awt.Color(248, 248, 248));
-        
-        PdfPCell cell2 = new PdfPCell(new Paragraph(value, normal));
-        cell2.setBorderWidth(0);
-        cell2.setBorderWidthBottom(0.5f);
-        cell2.setBorderColorBottom(java.awt.Color.LIGHT_GRAY);
-        cell2.setPadding(8);
-        if (isZebra) cell2.setBackgroundColor(new java.awt.Color(248, 248, 248));
-        
-        table.addCell(cell1);
-        table.addCell(cell2);
+    /**
+     * Convert a number to words (Indian English style).
+     * e.g., 1100 → "One Thousand One Hundred"
+     */
+    private static String numberToWords(long n) {
+        if (n == 0) return "Zero";
+
+        String[] ones = {"", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+                "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+                "Seventeen", "Eighteen", "Nineteen"};
+        String[] tens = {"", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"};
+
+        if (n < 0) return "Minus " + numberToWords(-n);
+
+        StringBuilder sb = new StringBuilder();
+
+        // Crore
+        if (n >= 10000000) {
+            sb.append(numberToWords(n / 10000000)).append(" Crore ");
+            n %= 10000000;
+        }
+        // Lakh
+        if (n >= 100000) {
+            sb.append(numberToWords(n / 100000)).append(" Lakh ");
+            n %= 100000;
+        }
+        // Thousand
+        if (n >= 1000) {
+            sb.append(numberToWords(n / 1000)).append(" Thousand ");
+            n %= 1000;
+        }
+        // Hundred
+        if (n >= 100) {
+            sb.append(ones[(int)(n / 100)]).append(" Hundred ");
+            n %= 100;
+        }
+        // Tens and ones
+        if (n >= 20) {
+            sb.append(tens[(int)(n / 10)]);
+            if (n % 10 != 0) sb.append(" ").append(ones[(int)(n % 10)]);
+        } else if (n > 0) {
+            sb.append(ones[(int)n]);
+        }
+
+        return sb.toString().trim();
     }
 }
