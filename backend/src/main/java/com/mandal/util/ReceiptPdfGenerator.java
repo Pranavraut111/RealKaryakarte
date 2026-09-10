@@ -112,7 +112,7 @@ public class ReceiptPdfGenerator {
             wrapperCell.addElement(sepPara);
 
             // --- RECEIVED FROM ---
-            Paragraph receivedFromLabel = new Paragraph("RECEIVED WITH THANKS FROM", labelFont);
+            Paragraph receivedFromLabel = new Paragraph("Received From:", labelFont);
             receivedFromLabel.setSpacingAfter(4);
             wrapperCell.addElement(receivedFromLabel);
 

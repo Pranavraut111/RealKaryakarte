@@ -105,7 +105,7 @@ public class AuthServlet extends HttpServlet {
 
         // Check if this karyakarta needs to set a password
         boolean needsPassword = false;
-        if ("KARYAKARTA".equals(user.getRole().name())) {
+        if (!"MEMBER".equals(user.getRole().name())) {
             String hash = PasswordStore.getPassword(user.getId());
             needsPassword = (hash == null || hash.isBlank());
         }
@@ -166,7 +166,7 @@ public class AuthServlet extends HttpServlet {
 
         // Check if this user was previously promoted (needs password)
         boolean needsPassword = false;
-        if ("KARYAKARTA".equals(user.getRole().name())) {
+        if (!"MEMBER".equals(user.getRole().name())) {
             String hash = PasswordStore.getPassword(user.getId());
             needsPassword = (hash == null || hash.isBlank());
         }
