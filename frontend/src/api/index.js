@@ -44,6 +44,19 @@ async function request(path, options = {}) {
         }
         throw new Error("Please set your password.");
       }
+      if (err.message === "ACCOUNT_PENDING") {
+        if (window.location.pathname !== "/pending") {
+          window.location.href = "/pending";
+        }
+        throw new Error("Account is pending approval.");
+      }
+      if (err.message === "ACCOUNT_REJECTED") {
+        localStorage.removeItem("mandal-token");
+        localStorage.removeItem("mandal-user");
+        localStorage.removeItem("mandal-name");
+        window.location.href = "/login?rejected=true";
+        throw new Error("Your request to join was rejected.");
+      }
       localStorage.removeItem("mandal-token");
       localStorage.removeItem("mandal-user");
       localStorage.removeItem("mandal-name");
@@ -96,6 +109,10 @@ export function setPasswordApi(password) {
     method: "POST",
     body: JSON.stringify({ password }),
   });
+}
+
+export function checkStatus() {
+  return request("/auth/status");
 }
 
 // ─── Mandal ───────────────────────────────────────────────────────────────────

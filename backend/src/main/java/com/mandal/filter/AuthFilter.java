@@ -63,9 +63,7 @@ public class AuthFilter implements Filter {
         if (!"APPROVED".equals(approvalStatus) && !"ADMIN".equals(userRole) && !"KARYAKARTA".equals(userRole)) {
             System.err.println("[AuthFilter] BLOCKED userId=" + userId + " role=" + userRole + " approvalStatus=" + approvalStatus + " path=" + path);
             JsonUtil.writeError(response, 403,
-                "PENDING".equals(approvalStatus)
-                    ? "Your account is pending approval from the admin."
-                    : "Your join request was rejected.");
+                "PENDING".equals(approvalStatus) ? "ACCOUNT_PENDING" : "ACCOUNT_REJECTED");
             return;
         }
 

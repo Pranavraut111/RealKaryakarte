@@ -13,7 +13,6 @@ export default function MemberJoinPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
   const [mandalName, setMandalName] = useState("");
 
   // If already logged in, redirect to dashboard
@@ -45,13 +44,12 @@ export default function MemberJoinPage() {
       const res = await memberJoin(name, phone, inviteCode);
       const { token, user, needsPassword, pending: isPending } = res.data;
 
+      login(token, user);
+
       if (isPending) {
-        // Don't login — show pending screen
-        setPending(true);
+        navigate("/pending");
         return;
       }
-
-      login(token, user);
 
       if (needsPassword) {
         navigate("/set-password");
@@ -65,44 +63,7 @@ export default function MemberJoinPage() {
     }
   };
 
-  // ── Pending Approval Screen ──────────────────────────────────────────
-  if (pending) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col justify-center items-center p-4">
-        <div className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-[radial-gradient(60%_100%_at_50%_0%,var(--color-primary-soft),transparent_70%)] opacity-25 dark:opacity-15" />
 
-        <div className="relative w-full max-w-md surface-lift rounded-3xl p-8 border border-border text-center">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-amber-500/10 flex items-center justify-center">
-            <Clock className="h-10 w-10 text-amber-500" />
-          </div>
-
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground mb-2">
-            Approval Pending
-          </h1>
-          <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-            Your request to join the Mandal has been sent to the Admin.
-            <br />
-            You will get access once they approve your request.
-          </p>
-
-          <div className="rounded-2xl bg-muted/30 p-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2 justify-center">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span>Name: <strong className="text-foreground">{name}</strong></span>
-            </div>
-            <div className="flex items-center gap-2 justify-center mt-1">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span>Phone: <strong className="text-foreground">{phone}</strong></span>
-            </div>
-          </div>
-
-          <p className="text-xs text-muted-foreground mt-6">
-            Come back later and enter the same phone number to check your status.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   // ── Join Form ────────────────────────────────────────────────────────
   return (

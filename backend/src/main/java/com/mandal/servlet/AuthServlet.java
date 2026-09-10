@@ -77,6 +77,8 @@ public class AuthServlet extends HttpServlet {
                 handleCreateMandal(req, resp);
             } else if ("/join-mandal".equals(path)) {
                 handleJoinMandal(req, resp);
+            } else if ("/status".equals(path)) {
+                handleStatus(req, resp);
             } else {
                 JsonUtil.writeError(resp, 404, "Unknown auth endpoint");
             }
@@ -334,5 +336,32 @@ public class AuthServlet extends HttpServlet {
         } else {
             JsonUtil.writeError(resp, 404, "User not found");
         }
+    }
+
+    private void handleStatus(HttpServletRequest req, HttpServletResponse resp) throws Exception {
+        String authHeader = req.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            JsonUtil.writeError(resp, 401, "Missing or invalid Authorization header");
+            return;
+        }
+
+        String token = authHeader.substring(7);
+        io.jsonwebtoken.Claims claims = com.mandal.util.JwtUtil.validateToken(token);
+        if (claims == null) {
+            JsonUtil.writeError(resp, 401, "Invalid or expired token");
+            return;
+        }
+
+        Long userId = com.mandal.util.JwtUtil.getUserId(claims);
+        com.mandal.dao.UserDao userDao = new com.mandal.dao.UserDao();
+        User user = userDao.findById(userId);
+
+        if (user == null) {
+            JsonUtil.writeError(resp, 404, "User not found");
+            return;
+        }
+
+        String newToken = com.mandal.util.JwtUtil.generateToken(user.getId(), user.getRole().name(), user.getEmail(), user.getMandalId(), user.getApprovalStatus());
+        JsonUtil.writeOk(resp, ApiResponse.ok("Status fetched successfully", new AuthResponse(newToken, user)));
     }
 }

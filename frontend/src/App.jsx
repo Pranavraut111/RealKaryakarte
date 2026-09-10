@@ -12,9 +12,12 @@ import ProfilePage from "./pages/ProfilePage";
 import MembersPage from "./pages/MembersPage";
 import VarganiTrackerPage from "./pages/VarganiTrackerPage";
 
+import PendingPage from "./pages/PendingPage";
+
 function ProtectedRoute({ children }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   if (!token) return <Navigate to="/login" replace />;
+  if (user?.approvalStatus === "PENDING") return <Navigate to="/pending" replace />;
   return children;
 }
 
@@ -24,6 +27,7 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/join/:inviteCode" element={<MemberJoinPage />} />
+      <Route path="/pending" element={<PendingPage />} />
       <Route path="/set-password" element={<ProtectedRoute><SetPasswordPage /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/vargani" element={<ProtectedRoute><VarganiPage /></ProtectedRoute>} />
