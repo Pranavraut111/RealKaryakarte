@@ -1,60 +1,40 @@
 package com.mandal.util;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 
 /**
- * File-based password hash store.
- * Stores hashed passwords in a JSON file on disk (never plaintext).
- * Path is configurable via ConfigUtil ("storage.base.dir") or defaults to
- * ~/mandal_data.
+ * Database-backed password hash store.
+ * Previously this was file-backed, but ephemeral environments (like Render) wipe the filesystem.
  */
 public class PasswordStore {
-    private static final ObjectMapper mapper = new ObjectMapper();
-    private static final ConcurrentHashMap<Long, String> passwords = new ConcurrentHashMap<>();
-    private static final String FILE_PATH;
 
-    static {
-        String baseDir = ConfigUtil.get("storage.base.dir",
-                System.getProperty("user.home") + "/mandal_data");
-        FILE_PATH = baseDir + "/passwords.json";
-        load();
-    }
-
-    private static void load() {
-        File file = new File(FILE_PATH);
-        if (file.exists()) {
-            try {
-                Map<Long, String> data = mapper.readValue(file, new TypeReference<Map<Long, String>>() {
-                });
-                passwords.putAll(data);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private static void save() {
-        try {
-            File file = new File(FILE_PATH);
-            file.getParentFile().mkdirs(); // ensure directory exists
-            mapper.writeValue(file, passwords);
-        } catch (IOException e) {
+    public static void setPassword(Long userId, String hash) {
+        String sql = "UPDATE users SET password_hash = ? WHERE id = ?";
+        try (Connection conn = DbConnectionManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, hash);
+            ps.setLong(2, userId);
+            ps.executeUpdate();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static void setPassword(Long userId, String hash) {
-        passwords.put(userId, hash);
-        save();
-    }
-
     public static String getPassword(Long userId) {
-        return passwords.get(userId);
+        String sql = "SELECT password_hash FROM users WHERE id = ?";
+        try (Connection conn = DbConnectionManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("password_hash");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
