@@ -18,6 +18,7 @@ function ProtectedRoute({ children }) {
   const { token, user } = useAuth();
   if (!token) return <Navigate to="/login" replace />;
   if (user?.approvalStatus === "PENDING") return <Navigate to="/pending" replace />;
+  if (user?.approvalStatus === "REJECTED") return <Navigate to="/login?rejected=true" replace />;
   return children;
 }
 

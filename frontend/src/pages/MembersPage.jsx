@@ -88,7 +88,8 @@ export default function MembersPage() {
 
   // Split members into pending and approved
   const pendingMembers = members.filter(m => m.approvalStatus === "PENDING");
-  const approvedMembers = members.filter(m => m.approvalStatus !== "PENDING");
+  const approvedMembers = members.filter(m => m.approvalStatus === "APPROVED");
+  const rejectedMembers = members.filter(m => m.approvalStatus === "REJECTED");
 
   return (
     <AppShell title={t("membersAndRoles")} subtitle={`${approvedMembers.length} ${t("members")}`}>
