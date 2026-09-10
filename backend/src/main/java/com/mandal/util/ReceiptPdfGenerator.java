@@ -18,9 +18,6 @@ import java.awt.Color;
 public class ReceiptPdfGenerator {
 
     // Colors
-    private static final Color BORDER_COLOR = new Color(139, 69, 19); // Dark brown border
-    private static final Color HEADER_BG = new Color(255, 248, 240); // Warm cream
-    private static final Color BODY_BG = new Color(255, 253, 250); // Off-white
     private static final Color ACCENT = new Color(249, 115, 22); // Orange accent
 
     public static String generate(
