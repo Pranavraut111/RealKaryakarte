@@ -69,6 +69,16 @@ public class AuthFilter implements Filter {
             return;
         }
 
+        // Enforce password setup for Karyakarta/Admin
+        if (!"MEMBER".equals(userRole)) {
+            String hash = com.mandal.util.PasswordStore.getPassword(userId);
+            if (hash == null || hash.isBlank()) {
+                System.err.println("[AuthFilter] BLOCKED userId=" + userId + " missing password setup.");
+                JsonUtil.writeError(response, 403, "PASSWORD_REQUIRED");
+                return;
+            }
+        }
+
         request.setAttribute("userId", userId);
         request.setAttribute("userRole", userRole);
         

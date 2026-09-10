@@ -37,11 +37,16 @@ async function request(path, options = {}) {
   if (!res.ok) {
     // Auto-logout on auth failures (expired/invalid token)
     if ((res.status === 401 || res.status === 403) && !path.startsWith("/auth/")) {
+      const err = await res.json().catch(() => ({ message: res.statusText }));
+      if (err.message === "PASSWORD_REQUIRED") {
+        window.location.href = "/set-password";
+        throw new Error("Please set your password.");
+      }
       localStorage.removeItem("mandal-token");
       localStorage.removeItem("mandal-user");
       localStorage.removeItem("mandal-name");
       window.location.href = "/login";
-      throw new Error("Session expired. Please login again.");
+      throw new Error(err.message || "Session expired. Please login again.");
     }
     const err = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(err.message || "Request failed");
