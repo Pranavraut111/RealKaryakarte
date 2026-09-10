@@ -49,6 +49,8 @@ public class AuthServlet extends HttpServlet {
                 }
                 JsonUtil.writeOk(resp, ApiResponse.ok("Mandal found",
                     java.util.Map.of("mandalName", mandal.getMandalName())));
+            } else if ("/status".equals(path)) {
+                handleStatus(req, resp);
             } else {
                 JsonUtil.writeError(resp, 404, "Unknown auth endpoint");
             }
@@ -77,8 +79,6 @@ public class AuthServlet extends HttpServlet {
                 handleCreateMandal(req, resp);
             } else if ("/join-mandal".equals(path)) {
                 handleJoinMandal(req, resp);
-            } else if ("/status".equals(path)) {
-                handleStatus(req, resp);
             } else {
                 JsonUtil.writeError(resp, 404, "Unknown auth endpoint");
             }
