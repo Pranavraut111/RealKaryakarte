@@ -29,11 +29,10 @@ export default function PendingPage() {
         const { token: newToken, user: newUser } = res.data;
         if (newUser.approvalStatus === "APPROVED") {
           login(newToken, newUser);
-          navigate("/dashboard");
+          window.location.href = "/dashboard";
         } else if (newUser.approvalStatus === "REJECTED") {
           login(newToken, newUser);
-          // Handled by interceptor, or we can just redirect
-          navigate("/login?rejected=true");
+          window.location.href = "/login?rejected=true";
         }
       } catch (err) {
         console.error("Status check failed:", err);
