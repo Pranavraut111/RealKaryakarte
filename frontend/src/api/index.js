@@ -112,7 +112,7 @@ export function setPasswordApi(password) {
 }
 
 export function checkStatus() {
-  return request("/auth/status");
+  return request(`/auth/status?t=${Date.now()}`);
 }
 
 // ─── Mandal ───────────────────────────────────────────────────────────────────
