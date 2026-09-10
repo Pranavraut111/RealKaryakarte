@@ -75,7 +75,30 @@ export default function PendingPage() {
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground mt-6">
+        <button
+          onClick={async () => {
+            try {
+              const res = await checkStatus();
+              const { token: newToken, user: newUser } = res.data;
+              if (newUser.approvalStatus === "APPROVED") {
+                login(newToken, newUser);
+                window.location.href = "/dashboard";
+              } else if (newUser.approvalStatus === "REJECTED") {
+                login(newToken, newUser);
+                window.location.href = "/login?rejected=true";
+              } else {
+                alert("Still pending! The admin hasn't approved you yet, or the database hasn't updated.");
+              }
+            } catch (err) {
+              alert("Error checking status: " + err.message);
+            }
+          }}
+          className="mt-6 flex min-h-[44px] w-full items-center justify-center rounded-xl bg-secondary text-sm font-semibold text-foreground transition-colors hover:bg-secondary/80"
+        >
+          Check Status Now
+        </button>
+
+        <p className="text-xs text-muted-foreground mt-4">
           Please wait... this page will automatically refresh when you are approved.
         </p>
       </div>
