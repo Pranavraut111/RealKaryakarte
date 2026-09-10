@@ -11,9 +11,9 @@ import java.sql.SQLException;
  * Reads DB config from application.properties via ConfigUtil.
  *
  * Usage:
- *   try (Connection conn = DbConnectionManager.getConnection()) {
- *       // execute SQL
- *   }
+ * try (Connection conn = DbConnectionManager.getConnection()) {
+ * // execute SQL
+ * }
  */
 public class DbConnectionManager {
 
@@ -43,13 +43,24 @@ public class DbConnectionManager {
             dataSource = new HikariDataSource(config);
             System.out.println("[DbConnectionManager] HikariCP pool initialized — " +
                     config.getJdbcUrl());
+
+            // Auto-migrate: Add password_hash column
+            try (Connection conn = dataSource.getConnection();
+                 java.sql.Statement stmt = conn.createStatement()) {
+                stmt.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)");
+                System.out.println("[DbConnectionManager] Auto-migration complete. password_hash column ensured.");
+            } catch (Exception e) {
+                System.err.println("[DbConnectionManager] Auto-migration failed: " + e.getMessage());
+            }
+
         } catch (Exception e) {
             System.err.println("[DbConnectionManager] Failed to initialize connection pool!");
             e.printStackTrace();
         }
     }
 
-    private DbConnectionManager() {}
+    private DbConnectionManager() {
+    }
 
     /**
      * Borrows a connection from the pool.
@@ -63,7 +74,8 @@ public class DbConnectionManager {
     }
 
     /**
-     * Shuts down the pool gracefully (call from a ServletContextListener on app shutdown).
+     * Shuts down the pool gracefully (call from a ServletContextListener on app
+     * shutdown).
      */
     public static void shutdown() {
         if (dataSource != null && !dataSource.isClosed()) {

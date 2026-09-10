@@ -11,7 +11,8 @@ import java.util.Map;
 /**
  * File-based password hash store.
  * Stores hashed passwords in a JSON file on disk (never plaintext).
- * Path is configurable via ConfigUtil ("storage.base.dir") or defaults to ~/mandal_data.
+ * Path is configurable via ConfigUtil ("storage.base.dir") or defaults to
+ * ~/mandal_data.
  */
 public class PasswordStore {
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -29,7 +30,8 @@ public class PasswordStore {
         File file = new File(FILE_PATH);
         if (file.exists()) {
             try {
-                Map<Long, String> data = mapper.readValue(file, new TypeReference<Map<Long, String>>() {});
+                Map<Long, String> data = mapper.readValue(file, new TypeReference<Map<Long, String>>() {
+                });
                 passwords.putAll(data);
             } catch (IOException e) {
                 e.printStackTrace();
