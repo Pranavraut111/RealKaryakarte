@@ -23,10 +23,6 @@ public class ReceiptPdfGenerator {
     private static final Color BODY_BG = new Color(255, 253, 250); // Off-white
     private static final Color ACCENT = new Color(249, 115, 22); // Orange accent
 
-    /**
-     * Generate a receipt PDF for a contribution.
-     * Returns the relative URL path of the generated PDF, or null if generation fails.
-     */
     public static String generate(
             String receiptNo,
             String memberName,
@@ -41,245 +37,222 @@ public class ReceiptPdfGenerator {
     ) {
         String fileName = receiptNo + "-" + System.currentTimeMillis() + ".pdf";
 
-        Document document = new Document(com.lowagie.text.PageSize.A5.rotate(), 30, 30, 30, 30);
+        // Use A5 Portrait with smaller margins to ensure everything fits on 1 page
+        Document document = new Document(com.lowagie.text.PageSize.A5, 20, 20, 20, 20);
         java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
         try {
             PdfWriter.getInstance(document, baos);
             document.open();
 
-            // ─── Outer Border Table ────────────────────────────────────
-            PdfPTable outerTable = new PdfPTable(1);
-            outerTable.setWidthPercentage(100);
+            // Fonts
+            Font titleFont = new Font(Font.HELVETICA, 16, Font.BOLD, new Color(30, 41, 59));
+            Font subtitleFont = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(100, 116, 139));
+            Font labelFont = new Font(Font.HELVETICA, 9, Font.BOLD, new Color(100, 116, 139));
+            Font valueFont = new Font(Font.HELVETICA, 11, Font.BOLD, new Color(15, 23, 42));
+            Font valueNormal = new Font(Font.HELVETICA, 11, Font.NORMAL, new Color(15, 23, 42));
+            Font amountFont = new Font(Font.HELVETICA, 18, Font.BOLD, new Color(249, 115, 22)); // Orange Accent
+            Font footerFont = new Font(Font.HELVETICA, 8, Font.ITALIC, new Color(148, 163, 184));
 
-            PdfPCell outerCell = new PdfPCell();
-            outerCell.setBorderWidth(2.5f);
-            outerCell.setBorderColor(BORDER_COLOR);
-            outerCell.setPadding(15);
-            outerCell.setBackgroundColor(BODY_BG);
+            // Main wrapper table
+            PdfPTable wrapperTable = new PdfPTable(1);
+            wrapperTable.setWidthPercentage(100);
+            
+            PdfPCell wrapperCell = new PdfPCell();
+            wrapperCell.setBorderWidth(1f);
+            wrapperCell.setBorderColor(new Color(226, 232, 240)); // Light gray border
+            wrapperCell.setPadding(20);
+            wrapperCell.setBackgroundColor(Color.WHITE);
 
-            // ─── Inner Border Table ────────────────────────────────────
-            PdfPTable innerTable = new PdfPTable(1);
-            innerTable.setWidthPercentage(100);
+            // --- HEADER ---
+            PdfPTable headerTable = new PdfPTable(2);
+            headerTable.setWidthPercentage(100);
+            headerTable.setWidths(new float[]{2.5f, 1.5f});
 
-            PdfPCell innerCell = new PdfPCell();
-            innerCell.setBorderWidth(1f);
-            innerCell.setBorderColor(BORDER_COLOR);
-            innerCell.setPadding(20);
-
-            // ═══ HEADER SECTION ═══════════════════════════════════════
-            PdfPTable headerRow = new PdfPTable(2);
-            headerRow.setWidthPercentage(100);
-            headerRow.setWidths(new float[]{3f, 2f});
-
-            // Left: Logo + Mandal Name
+            // Left Header: Logo & Org Name
             PdfPCell leftHeader = new PdfPCell();
             leftHeader.setBorder(0);
-            leftHeader.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            leftHeader.setVerticalAlignment(Element.ALIGN_TOP);
+            
+            Paragraph orgName = new Paragraph(mandalName, titleFont);
+            orgName.setSpacingAfter(4);
+            leftHeader.addElement(orgName);
+            leftHeader.addElement(new Paragraph("Official Payment Receipt", subtitleFont));
+            
+            headerTable.addCell(leftHeader);
 
-            try {
-                com.lowagie.text.Image logo = com.lowagie.text.Image.getInstance("/Users/pranavraut/RealKaryakarte/frontend/public/recieptlogo.png");
-                logo.scaleToFit(50, 50);
-                PdfPTable logoNameTable = new PdfPTable(2);
-                logoNameTable.setWidths(new float[]{1f, 4f});
-
-                PdfPCell logoCell = new PdfPCell(logo);
-                logoCell.setBorder(0);
-                logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                logoCell.setPaddingRight(8);
-                logoNameTable.addCell(logoCell);
-
-                Font mandalFont = new Font(Font.HELVETICA, 14, Font.BOLD, BORDER_COLOR);
-                PdfPCell nameCell = new PdfPCell(new Phrase(mandalName, mandalFont));
-                nameCell.setBorder(0);
-                nameCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                logoNameTable.addCell(nameCell);
-
-                leftHeader.addElement(logoNameTable);
-            } catch (Exception e) {
-                Font mandalFont = new Font(Font.HELVETICA, 16, Font.BOLD, BORDER_COLOR);
-                leftHeader.addElement(new Paragraph(mandalName, mandalFont));
-            }
-
-            headerRow.addCell(leftHeader);
-
-            // Right: Receipt No + Date boxes
+            // Right Header: Receipt & Date Info
             PdfPCell rightHeader = new PdfPCell();
             rightHeader.setBorder(0);
             rightHeader.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            rightHeader.setVerticalAlignment(Element.ALIGN_TOP);
 
-            PdfPTable noDateTable = new PdfPTable(2);
-            noDateTable.setWidths(new float[]{1f, 1f});
+            Paragraph receiptTitle = new Paragraph("RECEIPT", new Font(Font.HELVETICA, 14, Font.BOLD, ACCENT));
+            receiptTitle.setAlignment(Element.ALIGN_RIGHT);
+            receiptTitle.setSpacingAfter(8);
+            rightHeader.addElement(receiptTitle);
 
-            Font labelSmall = new Font(Font.HELVETICA, 8, Font.BOLD, Color.GRAY);
-            Font valueSmall = new Font(Font.HELVETICA, 10, Font.BOLD, Color.BLACK);
+            Paragraph noPara = new Paragraph();
+            noPara.setAlignment(Element.ALIGN_RIGHT);
+            noPara.add(new Phrase("Receipt No: ", labelFont));
+            noPara.add(new Phrase(receiptNo, valueNormal));
+            rightHeader.addElement(noPara);
 
-            // No. box
-            PdfPCell noLabelCell = new PdfPCell(new Phrase("No.", labelSmall));
-            noLabelCell.setBorder(0);
-            noLabelCell.setPaddingBottom(2);
-            noDateTable.addCell(noLabelCell);
+            Paragraph datePara = new Paragraph();
+            datePara.setAlignment(Element.ALIGN_RIGHT);
+            datePara.add(new Phrase("Date: ", labelFont));
+            datePara.add(new Phrase(date, valueNormal));
+            rightHeader.addElement(datePara);
 
-            PdfPCell dateLabelCell = new PdfPCell(new Phrase("Date", labelSmall));
-            dateLabelCell.setBorder(0);
-            dateLabelCell.setPaddingBottom(2);
-            noDateTable.addCell(dateLabelCell);
+            headerTable.addCell(rightHeader);
+            wrapperCell.addElement(headerTable);
 
-            PdfPCell noValueCell = new PdfPCell(new Phrase(receiptNo, valueSmall));
-            noValueCell.setBorderWidth(1f);
-            noValueCell.setBorderColor(Color.GRAY);
-            noValueCell.setPadding(6);
-            noValueCell.setBackgroundColor(HEADER_BG);
-            noDateTable.addCell(noValueCell);
-
-            PdfPCell dateValueCell = new PdfPCell(new Phrase(date, valueSmall));
-            dateValueCell.setBorderWidth(1f);
-            dateValueCell.setBorderColor(Color.GRAY);
-            dateValueCell.setPadding(6);
-            dateValueCell.setBackgroundColor(HEADER_BG);
-            noDateTable.addCell(dateValueCell);
-
-            rightHeader.addElement(noDateTable);
-            headerRow.addCell(rightHeader);
-
-            innerCell.addElement(headerRow);
-
-            // Separator line
-            innerCell.addElement(new Paragraph("\n"));
-            com.lowagie.text.pdf.draw.LineSeparator sep = new com.lowagie.text.pdf.draw.LineSeparator(1, 100, BORDER_COLOR, Element.ALIGN_CENTER, -2);
+            // --- SEPARATOR ---
+            com.lowagie.text.pdf.draw.LineSeparator sep = new com.lowagie.text.pdf.draw.LineSeparator(1f, 100, new Color(226, 232, 240), Element.ALIGN_CENTER, -2);
             Paragraph sepPara = new Paragraph();
             sepPara.add(sep);
-            innerCell.addElement(sepPara);
-            innerCell.addElement(new Paragraph("\n"));
+            sepPara.setSpacingBefore(10);
+            sepPara.setSpacingAfter(15);
+            wrapperCell.addElement(sepPara);
 
-            // ═══ RECEIPT TITLE ════════════════════════════════════════
-            Font receiptTitleFont = new Font(Font.HELVETICA, 12, Font.BOLD, ACCENT);
-            Paragraph receiptTitle = new Paragraph("RECEIPT / पावती", receiptTitleFont);
-            receiptTitle.setAlignment(Element.ALIGN_CENTER);
-            receiptTitle.setSpacingAfter(15);
-            innerCell.addElement(receiptTitle);
+            // --- RECEIVED FROM ---
+            Paragraph receivedFromLabel = new Paragraph("RECEIVED WITH THANKS FROM", labelFont);
+            receivedFromLabel.setSpacingAfter(4);
+            wrapperCell.addElement(receivedFromLabel);
 
-            // ═══ BODY — Traditional format ════════════════════════════
-            Font bodyFont = new Font(Font.HELVETICA, 11, Font.NORMAL, Color.BLACK);
-            Font bodyBold = new Font(Font.HELVETICA, 11, Font.BOLD, Color.BLACK);
-            Font bodyUnderline = new Font(Font.HELVETICA, 11, Font.UNDERLINE | Font.BOLD, ACCENT);
+            Paragraph memberNamePara = new Paragraph(memberName, valueFont);
+            memberNamePara.setSpacingAfter(6);
+            wrapperCell.addElement(memberNamePara);
 
-            // "RECEIVED with thanks from ___"
-            Paragraph line1 = new Paragraph();
-            line1.add(new Phrase("RECEIVED with thanks from  ", bodyFont));
-            line1.add(new Phrase(memberName, bodyUnderline));
-            line1.setSpacingAfter(12);
-            innerCell.addElement(line1);
-
-            // Room info if available
-            if (roomNumber != null && !roomNumber.isBlank()) {
-                String floorLabel = (floorNumber != null && floorNumber == 0) ? "Owner" : (floorNumber != null ? "Floor " + floorNumber : "");
-                Paragraph roomLine = new Paragraph();
-                roomLine.add(new Phrase("Room No.  ", bodyFont));
-                roomLine.add(new Phrase(roomNumber + "  ·  " + floorLabel, bodyBold));
-                roomLine.setSpacingAfter(12);
-                innerCell.addElement(roomLine);
+            if (roomNumber != null && !roomNumber.trim().isEmpty()) {
+                String floorStr = (floorNumber != null && floorNumber == 0) ? "Owner" : (floorNumber != null ? "Floor " + floorNumber : "");
+                Paragraph roomInfo = new Paragraph("Room No. " + roomNumber + (floorStr.isEmpty() ? "" : " • " + floorStr), valueNormal);
+                roomInfo.setSpacingAfter(15);
+                wrapperCell.addElement(roomInfo);
+            } else {
+                Paragraph spacer = new Paragraph(" ");
+                spacer.setSpacingAfter(10);
+                wrapperCell.addElement(spacer);
             }
 
-            // "the sum of Rupees ___"
+            // --- PAYMENT DETAILS ---
+            PdfPTable detailsTable = new PdfPTable(2);
+            detailsTable.setWidthPercentage(100);
+            detailsTable.setWidths(new float[]{3f, 1f});
+            detailsTable.setSpacingAfter(15);
+
+            PdfPCell descCell = new PdfPCell(new Phrase("Description", labelFont));
+            descCell.setBorderColor(new Color(226, 232, 240));
+            descCell.setBorderWidthTop(1f);
+            descCell.setBorderWidthBottom(1f);
+            descCell.setBorderWidthLeft(0);
+            descCell.setBorderWidthRight(0);
+            descCell.setPaddingTop(8);
+            descCell.setPaddingBottom(8);
+            detailsTable.addCell(descCell);
+
+            PdfPCell amtCell = new PdfPCell(new Phrase("Amount", labelFont));
+            amtCell.setBorderColor(new Color(226, 232, 240));
+            amtCell.setBorderWidthTop(1f);
+            amtCell.setBorderWidthBottom(1f);
+            amtCell.setBorderWidthLeft(0);
+            amtCell.setBorderWidthRight(0);
+            amtCell.setPaddingTop(8);
+            amtCell.setPaddingBottom(8);
+            amtCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            detailsTable.addCell(amtCell);
+
+            PdfPCell descValCell = new PdfPCell();
+            descValCell.setBorder(0);
+            descValCell.setPaddingTop(12);
+            descValCell.addElement(new Paragraph("Contribution / Vargani", valueNormal));
+            Paragraph modePara = new Paragraph();
+            modePara.add(new Phrase("Payment Mode: ", labelFont));
+            modePara.add(new Phrase(paymentMethod, valueNormal));
+            modePara.setSpacingBefore(4);
+            descValCell.addElement(modePara);
+            detailsTable.addCell(descValCell);
+
+            PdfPCell amtValCell = new PdfPCell();
+            amtValCell.setBorder(0);
+            amtValCell.setPaddingTop(12);
+            amtValCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            Paragraph amtValPara = new Paragraph("₹" + amount, valueNormal);
+            amtValPara.setAlignment(Element.ALIGN_RIGHT);
+            amtValCell.addElement(amtValPara);
+            detailsTable.addCell(amtValCell);
+
+            wrapperCell.addElement(detailsTable);
+
+            // --- AMOUNT HIGHLIGHT ---
+            PdfPTable amountTable = new PdfPTable(2);
+            amountTable.setWidthPercentage(100);
+            amountTable.setWidths(new float[]{2.5f, 1.5f});
+            amountTable.setSpacingAfter(25);
+
+            PdfPCell wordsCell = new PdfPCell();
+            wordsCell.setBorder(0);
+            wordsCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            wordsCell.addElement(new Paragraph("Amount in words:", labelFont));
             String amountInWords = numberToWords(Long.parseLong(amount.replace(",", "").split("\\.")[0]));
-            Paragraph line2 = new Paragraph();
-            line2.add(new Phrase("the sum of Rupees  ", bodyFont));
-            line2.add(new Phrase(amountInWords, bodyBold));
-            line2.setSpacingAfter(8);
-            innerCell.addElement(line2);
+            wordsCell.addElement(new Paragraph("Rupees " + amountInWords + " Only", valueNormal));
+            amountTable.addCell(wordsCell);
 
-            // Amount box
-            Font amountFont = new Font(Font.HELVETICA, 16, Font.BOLD, ACCENT);
-            Paragraph amountPara = new Paragraph();
-            amountPara.add(new Phrase("₹ ", amountFont));
-            amountPara.add(new Phrase(amount + " /-", amountFont));
-            amountPara.setAlignment(Element.ALIGN_RIGHT);
-            amountPara.setSpacingAfter(12);
-            innerCell.addElement(amountPara);
+            PdfPCell bigAmtCell = new PdfPCell();
+            bigAmtCell.setBorder(0);
+            bigAmtCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            bigAmtCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            Paragraph bigAmtPara = new Paragraph("₹" + amount + ".00", amountFont);
+            bigAmtPara.setAlignment(Element.ALIGN_RIGHT);
+            bigAmtCell.addElement(bigAmtPara);
+            amountTable.addCell(bigAmtCell);
 
-            // "by cheque / draft / cash, in full / part / advance"
-            Paragraph line3 = new Paragraph();
-            line3.add(new Phrase("by  ", bodyFont));
-            line3.add(new Phrase(paymentMethod, bodyBold));
-            line3.add(new Phrase("  ,  in full", bodyFont));
-            line3.setSpacingAfter(20);
-            innerCell.addElement(line3);
+            wrapperCell.addElement(amountTable);
 
-            // ═══ FOOTER — Stamp + Signature ══════════════════════════
-            PdfPTable footerTable = new PdfPTable(3);
+            // --- BOTTOM SECTION (Signatures) ---
+            PdfPTable footerTable = new PdfPTable(2);
             footerTable.setWidthPercentage(100);
-            footerTable.setWidths(new float[]{2f, 1.5f, 2f});
+            footerTable.setSpacingBefore(30);
 
-            // Mandal stamp area
-            PdfPCell stampCell = new PdfPCell();
-            stampCell.setBorder(0);
-            stampCell.setVerticalAlignment(Element.ALIGN_BOTTOM);
+            PdfPCell sealCell = new PdfPCell();
+            sealCell.setBorder(0);
+            sealCell.setVerticalAlignment(Element.ALIGN_BOTTOM);
+            
+            Paragraph sealLabel = new Paragraph("[ Stamp / Seal ]", footerFont);
+            sealLabel.setAlignment(Element.ALIGN_LEFT);
+            sealCell.addElement(sealLabel);
+            footerTable.addCell(sealCell);
 
-            Font stampFont = new Font(Font.HELVETICA, 8, Font.BOLD, BORDER_COLOR);
-            Paragraph stampText = new Paragraph(mandalName, stampFont);
-            stampText.setAlignment(Element.ALIGN_CENTER);
-            stampCell.addElement(stampText);
-
-            com.lowagie.text.pdf.draw.LineSeparator stampLine = new com.lowagie.text.pdf.draw.LineSeparator(0.5f, 90, Color.GRAY, Element.ALIGN_CENTER, -3);
-            Paragraph stampLinePara = new Paragraph();
-            stampLinePara.add(stampLine);
-            stampCell.addElement(stampLinePara);
-
-            Font tinyFont = new Font(Font.HELVETICA, 7, Font.ITALIC, Color.GRAY);
-            Paragraph stampLabel = new Paragraph("Mandal Seal", tinyFont);
-            stampLabel.setAlignment(Element.ALIGN_CENTER);
-            stampLabel.setSpacingBefore(3);
-            stampCell.addElement(stampLabel);
-
-            footerTable.addCell(stampCell);
-
-            // Center — Thank you message
-            PdfPCell centerCell = new PdfPCell();
-            centerCell.setBorder(0);
-            centerCell.setVerticalAlignment(Element.ALIGN_BOTTOM);
-
-            Font thankFont = new Font(Font.HELVETICA, 7, Font.ITALIC, Color.GRAY);
-            Paragraph thankText = new Paragraph("|| श्री गणेशाय नमः ||\nThank you for your\ngenerous contribution!", thankFont);
-            thankText.setAlignment(Element.ALIGN_CENTER);
-            centerCell.addElement(thankText);
-            footerTable.addCell(centerCell);
-
-            // Right — Authorized Signatory
             PdfPCell signCell = new PdfPCell();
             signCell.setBorder(0);
             signCell.setVerticalAlignment(Element.ALIGN_BOTTOM);
-
-            Font signNameFont = new Font(Font.HELVETICA, 10, Font.BOLDITALIC, Color.BLACK);
-            Paragraph signName = new Paragraph(collectorName != null ? collectorName : "", signNameFont);
-            signName.setAlignment(Element.ALIGN_CENTER);
+            signCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            
+            Paragraph signName = new Paragraph(collectorName != null ? collectorName : "Authorized Signatory", valueNormal);
+            signName.setAlignment(Element.ALIGN_RIGHT);
+            signName.setSpacingAfter(4);
             signCell.addElement(signName);
 
-            com.lowagie.text.pdf.draw.LineSeparator signLine = new com.lowagie.text.pdf.draw.LineSeparator(1, 80, Color.BLACK, Element.ALIGN_CENTER, -3);
+            com.lowagie.text.pdf.draw.LineSeparator signLine = new com.lowagie.text.pdf.draw.LineSeparator(1, 100, new Color(200, 200, 200), Element.ALIGN_RIGHT, -2);
             Paragraph signLinePara = new Paragraph();
             signLinePara.add(signLine);
             signCell.addElement(signLinePara);
 
-            Font signLabelFont = new Font(Font.HELVETICA, 8, Font.NORMAL, Color.GRAY);
-            Paragraph signLabel = new Paragraph("Authorized Signatory", signLabelFont);
-            signLabel.setAlignment(Element.ALIGN_CENTER);
-            signLabel.setSpacingBefore(3);
+            Paragraph signLabel = new Paragraph("Authorized Signatory", footerFont);
+            signLabel.setAlignment(Element.ALIGN_RIGHT);
             signCell.addElement(signLabel);
 
             footerTable.addCell(signCell);
-            innerCell.addElement(footerTable);
+            wrapperCell.addElement(footerTable);
 
-            // ─── Note at bottom ────────────────────────────────────────
-            innerCell.addElement(new Paragraph("\n"));
-            Font noteFont = new Font(Font.HELVETICA, 6, Font.ITALIC, Color.GRAY);
-            Paragraph note = new Paragraph("This is a system generated receipt. · Subject to realisation of cheque.", noteFont);
-            note.setAlignment(Element.ALIGN_CENTER);
-            innerCell.addElement(note);
+            // --- DISCLAIMER ---
+            wrapperCell.addElement(new Paragraph("\n"));
+            Paragraph disclaimer = new Paragraph("This is a system generated receipt. Subject to realisation of cheque.", footerFont);
+            disclaimer.setAlignment(Element.ALIGN_CENTER);
+            wrapperCell.addElement(disclaimer);
 
-            // Assemble
-            innerTable.addCell(innerCell);
-            outerCell.addElement(innerTable);
-            outerTable.addCell(outerCell);
-            document.add(outerTable);
+            // Add wrapper to document
+            wrapperTable.addCell(wrapperCell);
+            document.add(wrapperTable);
 
             document.close();
             
