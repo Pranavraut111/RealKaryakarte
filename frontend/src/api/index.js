@@ -141,6 +141,13 @@ export function renameMandal(mandalName) {
   });
 }
 
+export function updatePreviousBalance(amount) {
+  return request("/mandal", {
+    method: "PUT",
+    body: JSON.stringify({ previousBalance: amount }),
+  });
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export function getDashboard() {
   return request("/dashboard/summary");

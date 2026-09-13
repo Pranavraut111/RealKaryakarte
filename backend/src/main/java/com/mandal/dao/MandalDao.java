@@ -1,6 +1,7 @@
 package com.mandal.dao;
 
 import com.mandal.model.Mandal;
+import java.math.BigDecimal;
 import com.mandal.util.DbConnectionManager;
 
 import java.sql.Connection;
@@ -16,6 +17,8 @@ public class MandalDao {
         m.setId(rs.getLong("id"));
         m.setMandalName(rs.getString("mandal_name"));
         m.setInviteCode(rs.getString("invite_code"));
+        BigDecimal pb = rs.getBigDecimal("previous_balance");
+        m.setPreviousBalance(pb != null ? pb : BigDecimal.ZERO);
         return m;
     }
 
@@ -62,6 +65,16 @@ public class MandalDao {
         try (Connection conn = DbConnectionManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, newName);
+            ps.setLong(2, id);
+            ps.executeUpdate();
+        }
+    }
+
+    public void updatePreviousBalance(Long id, BigDecimal amount) throws SQLException {
+        String sql = "UPDATE mandals SET previous_balance = ? WHERE id = ?";
+        try (Connection conn = DbConnectionManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBigDecimal(1, amount);
             ps.setLong(2, id);
             ps.executeUpdate();
         }

@@ -45,6 +45,12 @@ public class ReportServlet extends HttpServlet {
 
             Long mandalId = (Long) req.getAttribute("mandalId");
 
+            // Fetch previous year balance from mandal settings
+            com.mandal.dao.MandalDao mandalDao = new com.mandal.dao.MandalDao();
+            com.mandal.model.Mandal mandal = mandalDao.findById(mandalId);
+            double previousBalance = (mandal != null && mandal.getPreviousBalance() != null)
+                    ? mandal.getPreviousBalance().doubleValue() : 0;
+
             try (Workbook workbook = new XSSFWorkbook()) {
                 // Create data sheets first to compute totals
                 Sheet contribSheet = workbook.createSheet("वर्गणी (Contributions)");
@@ -60,7 +66,7 @@ public class ReportServlet extends HttpServlet {
                 // Create summary sheet FIRST (move to index 0)
                 Sheet summarySheet = workbook.createSheet("जमा खर्च");
                 workbook.setSheetOrder("जमा खर्च", 0);
-                createSummarySheet(workbook, summarySheet, totalVargani, totalKharch, roomTotals[0], roomTotals[1]);
+                createSummarySheet(workbook, summarySheet, totalVargani, totalKharch, roomTotals[0], roomTotals[1], previousBalance);
 
                 workbook.write(resp.getOutputStream());
             }
@@ -491,7 +497,7 @@ public class ReportServlet extends HttpServlet {
 
     // ── Summary Sheet (जमा खर्च) ────────────────────────────────────────────
     private void createSummarySheet(Workbook workbook, Sheet sheet, double totalVargani, double totalKharch,
-                                     double ownerCollected, double renterCollected) {
+                                     double ownerCollected, double renterCollected, double previousBalance) {
         CellStyle titleStyle = workbook.createCellStyle();
         Font titleFont = workbook.createFont();
         titleFont.setBold(true);
@@ -536,31 +542,35 @@ public class ReportServlet extends HttpServlet {
         Cell h1 = r2.createCell(0); h1.setCellValue("तपशील"); h1.setCellStyle(labelStyle);
         Cell h2 = r2.createCell(1); h2.setCellValue("रक्कम"); h2.setCellStyle(labelStyle);
 
-        // Owner collection
+        // Previous Year Balance
         Row r4 = sheet.createRow(4);
-        r4.createCell(0).setCellValue("जमा झालेली वर्गणी (घरमालक)");
-        Cell v4 = r4.createCell(1); v4.setCellValue(ownerCollected); v4.setCellStyle(currencyStyle);
+        r4.createCell(0).setCellValue("मागील वर्षाची शिल्लक (Previous Year Balance)");
+        Cell v4 = r4.createCell(1); v4.setCellValue(previousBalance); v4.setCellStyle(currencyStyle);
+
+        // Owner collection
+        Row r5 = sheet.createRow(5);
+        r5.createCell(0).setCellValue("जमा झालेली वर्गणी (घरमालक)");
+        Cell v5 = r5.createCell(1); v5.setCellValue(ownerCollected); v5.setCellStyle(currencyStyle);
 
         // Renter collection
-        Row r5 = sheet.createRow(5);
-        r5.createCell(0).setCellValue("जमा झालेली वर्गणी (भाडेकरू)");
-        Cell v5 = r5.createCell(1); v5.setCellValue(renterCollected); v5.setCellStyle(currencyStyle);
-
-        // Total Vargani
         Row r6 = sheet.createRow(6);
-        Cell l6 = r6.createCell(0); l6.setCellValue("एकूण वर्गणी जमा"); l6.setCellStyle(totalLabelStyle);
-        Cell v6 = r6.createCell(1); v6.setCellValue(totalVargani); v6.setCellStyle(totalValueStyle);
+        r6.createCell(0).setCellValue("जमा झालेली वर्गणी (भाडेकरू)");
+        Cell v6 = r6.createCell(1); v6.setCellValue(renterCollected); v6.setCellStyle(currencyStyle);
 
-        // Empty row
+        // Total Vargani (including previous balance)
+        Row r7 = sheet.createRow(7);
+        Cell l7 = r7.createCell(0); l7.setCellValue("एकूण वर्गणी जमा"); l7.setCellStyle(totalLabelStyle);
+        Cell v7 = r7.createCell(1); v7.setCellValue(previousBalance + totalVargani); v7.setCellStyle(totalValueStyle);
+
         // Total Kharch
-        Row r8 = sheet.createRow(8);
-        Cell l8 = r8.createCell(0); l8.setCellValue("एकूण खर्च"); l8.setCellStyle(totalLabelStyle);
-        Cell v8 = r8.createCell(1); v8.setCellValue(totalKharch); v8.setCellStyle(totalValueStyle);
+        Row r9 = sheet.createRow(9);
+        Cell l9 = r9.createCell(0); l9.setCellValue("एकूण खर्च"); l9.setCellStyle(totalLabelStyle);
+        Cell v9 = r9.createCell(1); v9.setCellValue(totalKharch); v9.setCellStyle(totalValueStyle);
 
         // Balance
-        Row r10 = sheet.createRow(10);
-        Cell l10 = r10.createCell(0); l10.setCellValue("एकूण (बाकी)"); l10.setCellStyle(totalLabelStyle);
-        Cell v10 = r10.createCell(1); v10.setCellValue(totalVargani - totalKharch); v10.setCellStyle(totalValueStyle);
+        Row r11 = sheet.createRow(11);
+        Cell l11 = r11.createCell(0); l11.setCellValue("एकूण (बाकी)"); l11.setCellStyle(totalLabelStyle);
+        Cell v11 = r11.createCell(1); v11.setCellValue(previousBalance + totalVargani - totalKharch); v11.setCellStyle(totalValueStyle);
 
         sheet.autoSizeColumn(0);
         sheet.autoSizeColumn(1);

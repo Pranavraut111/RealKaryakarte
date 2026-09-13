@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowUpRight, Plus, Receipt, Wallet, TrendingUp, PartyPopper, X, PieChart as PieChartIcon, Building2 } from "lucide-react";
+import { ArrowUpRight, Plus, Receipt, Wallet, TrendingUp, PartyPopper, X, PieChart as PieChartIcon, Building2, Pencil, Check } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { AppShell, FlameIcon } from "@/components/AppShell";
 import { useAuth } from "@/context/AuthContext";
@@ -38,6 +38,11 @@ export default function DashboardPage() {
   const [joiningMandal, setJoiningMandal] = useState(false);
   const [newMandalName, setNewMandalName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+
+  // Previous balance editing
+  const [editingPrevBal, setEditingPrevBal] = useState(false);
+  const [prevBalInput, setPrevBalInput] = useState("");
+  const [savingPrevBal, setSavingPrevBal] = useState(false);
 
   const location = useLocation();
   const [showWelcome, setShowWelcome] = useState(false);
@@ -86,7 +91,8 @@ export default function DashboardPage() {
 
   const totalCollected = data?.totalCollected ?? 0;
   const totalSpent = data?.totalSpent ?? 0;
-  const balance = totalCollected - totalSpent;
+  const previousBalance = data?.previousBalance ?? 0;
+  const balance = previousBalance + totalCollected - totalSpent;
   const target = data?.target ?? 250000;
   const recentActivity = data?.recentActivity ?? [];
 
@@ -200,6 +206,65 @@ export default function DashboardPage() {
             <MiniStat label={t("spentLabel")} value={inr(totalSpent)} />
           </div>
 
+          {/* Previous Year Balance — Admin only */}
+          {user?.role === "ADMIN" && (
+            <div className="mt-3">
+              {editingPrevBal ? (
+                <div className="rounded-2xl border border-ink-foreground/10 bg-ink-foreground/6 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-foreground/55 mb-2">Previous Year Balance</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-ink-foreground font-semibold">₹</span>
+                    <input
+                      type="number"
+                      value={prevBalInput}
+                      onChange={(e) => setPrevBalInput(e.target.value)}
+                      className="flex-1 rounded-lg border border-ink-foreground/20 bg-transparent px-2 py-1.5 text-sm font-semibold text-ink-foreground outline-none"
+                      placeholder="0"
+                      autoFocus
+                    />
+                    <button
+                      disabled={savingPrevBal}
+                      onClick={async () => {
+                        const val = parseFloat(prevBalInput) || 0;
+                        setSavingPrevBal(true);
+                        try {
+                          await api.updatePreviousBalance(val);
+                          // Refresh dashboard data
+                          const res = await api.getDashboard();
+                          setData(res.data || res);
+                          setEditingPrevBal(false);
+                        } catch (err) {
+                          alert("Failed: " + err.message);
+                        } finally {
+                          setSavingPrevBal(false);
+                        }
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400"
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setEditingPrevBal(false)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink-foreground/10 text-ink-foreground/60"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="rounded-2xl border border-ink-foreground/10 bg-ink-foreground/6 px-4 py-3 cursor-pointer transition-colors hover:bg-ink-foreground/10"
+                  onClick={() => { setPrevBalInput(String(previousBalance)); setEditingPrevBal(true); }}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-ink-foreground/55">Previous Year Balance</p>
+                    <Pencil className="h-3 w-3 text-ink-foreground/40" />
+                  </div>
+                  <p className="tabular mt-1 text-lg font-semibold text-ink-foreground">{inr(previousBalance)}</p>
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
       </section>

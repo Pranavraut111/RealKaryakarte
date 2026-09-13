@@ -11,6 +11,7 @@ public class DashboardSummary {
     private BigDecimal totalCollected;
     private BigDecimal totalSpent;
     private BigDecimal balance;
+    private BigDecimal previousBalance;
     private int totalMembers;
     private int totalContributions;
     private List<ExpenseCategorySum> expenseAnalytics;
@@ -28,6 +29,9 @@ public class DashboardSummary {
 
     public BigDecimal getBalance() { return balance; }
     public void setBalance(BigDecimal balance) { this.balance = balance; }
+
+    public BigDecimal getPreviousBalance() { return previousBalance; }
+    public void setPreviousBalance(BigDecimal previousBalance) { this.previousBalance = previousBalance; }
 
     public int getTotalMembers() { return totalMembers; }
     public void setTotalMembers(int totalMembers) { this.totalMembers = totalMembers; }

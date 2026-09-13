@@ -40,12 +40,23 @@ public class DashboardDao {
                 }
             }
 
+            // ── Previous Year Balance ───────────────────────────────────
+            BigDecimal previousBalance = BigDecimal.ZERO;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT COALESCE(previous_balance, 0) FROM mandals WHERE id = ?")) {
+                ps.setLong(1, mandalId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) previousBalance = rs.getBigDecimal(1);
+                }
+            }
+            summary.setPreviousBalance(previousBalance);
+
             // ── Balance ─────────────────────────────────────────────────
             BigDecimal collected = summary.getTotalCollected() != null
                     ? summary.getTotalCollected() : BigDecimal.ZERO;
             BigDecimal spent = summary.getTotalSpent() != null
                     ? summary.getTotalSpent() : BigDecimal.ZERO;
-            summary.setBalance(collected.subtract(spent));
+            summary.setBalance(previousBalance.add(collected).subtract(spent));
 
             // ── Total members ───────────────────────────────────────────
             try (PreparedStatement ps = conn.prepareStatement(

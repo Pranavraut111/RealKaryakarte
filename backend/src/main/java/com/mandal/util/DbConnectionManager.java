@@ -53,6 +53,15 @@ public class DbConnectionManager {
                 System.err.println("[DbConnectionManager] Auto-migration failed: " + e.getMessage());
             }
 
+            // Auto-migrate: Add previous_balance column to mandals
+            try (Connection conn = dataSource.getConnection();
+                 java.sql.Statement stmt = conn.createStatement()) {
+                stmt.execute("ALTER TABLE mandals ADD COLUMN IF NOT EXISTS previous_balance NUMERIC(12,2) DEFAULT 0");
+                System.out.println("[DbConnectionManager] Auto-migration complete. previous_balance column ensured.");
+            } catch (Exception e) {
+                System.err.println("[DbConnectionManager] Auto-migration (previous_balance) failed: " + e.getMessage());
+            }
+
         } catch (Exception e) {
             System.err.println("[DbConnectionManager] Failed to initialize connection pool!");
             e.printStackTrace();

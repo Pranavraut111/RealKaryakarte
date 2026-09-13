@@ -62,18 +62,31 @@ public class MandalServlet extends HttpServlet {
             }
 
             @SuppressWarnings("unchecked")
-            Map<String, String> body = JsonUtil.readBody(req, Map.class);
-            String newName = body.get("mandalName");
+            Map<String, Object> body = JsonUtil.readBody(req, Map.class);
 
-            if (newName == null || newName.trim().isEmpty()) {
-                JsonUtil.writeError(resp, 400, "Mandal name cannot be empty");
-                return;
+            // Handle mandal name rename
+            Object nameObj = body.get("mandalName");
+            if (nameObj != null) {
+                String newName = nameObj.toString().trim();
+                if (!newName.isEmpty()) {
+                    mandalDao.updateMandalName(mandalId, newName);
+                }
             }
 
-            mandalDao.updateMandalName(mandalId, newName.trim());
-            
+            // Handle previous balance update
+            Object prevBalObj = body.get("previousBalance");
+            if (prevBalObj != null) {
+                java.math.BigDecimal prevBal;
+                if (prevBalObj instanceof Number) {
+                    prevBal = new java.math.BigDecimal(prevBalObj.toString());
+                } else {
+                    prevBal = new java.math.BigDecimal(prevBalObj.toString());
+                }
+                mandalDao.updatePreviousBalance(mandalId, prevBal);
+            }
+
             Mandal updated = mandalDao.findById(mandalId);
-            JsonUtil.writeOk(resp, ApiResponse.ok("Mandal renamed successfully", updated));
+            JsonUtil.writeOk(resp, ApiResponse.ok("Mandal updated successfully", updated));
 
         } catch (Exception e) {
             e.printStackTrace();
