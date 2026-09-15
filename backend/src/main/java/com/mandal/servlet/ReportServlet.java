@@ -322,12 +322,13 @@ public class ReportServlet extends HttpServlet {
         // Data rows
         double total = 0;
         int rowNum = 3;
+        int srNo = 1;
         for (Contribution c : contributions) {
             boolean isAlt = ((rowNum - 3) % 2 == 1);
             Row row = sheet.createRow(rowNum++);
             row.setHeightInPoints(22);
 
-            setCell(row, 0, String.valueOf(c.getId()), srStyles[isAlt ? 1 : 0]);
+            setCell(row, 0, String.valueOf(srNo++), srStyles[isAlt ? 1 : 0]);
             setCell(row, 1, c.getReceiptNo() != null ? c.getReceiptNo() : "", dataStyles[isAlt ? 1 : 0]);
             setCell(row, 2, c.getMemberName() != null ? c.getMemberName() : "", dataStyles[isAlt ? 1 : 0]);
 
@@ -406,12 +407,13 @@ public class ReportServlet extends HttpServlet {
 
         double total = 0;
         int rowNum = 3;
+        int srNo = 1;
         for (Expense e : expenses) {
             boolean isAlt = ((rowNum - 3) % 2 == 1);
             Row row = sheet.createRow(rowNum++);
             row.setHeightInPoints(22);
 
-            setCell(row, 0, String.valueOf(e.getId()), srStyles[isAlt ? 1 : 0]);
+            setCell(row, 0, String.valueOf(srNo++), srStyles[isAlt ? 1 : 0]);
             setCell(row, 1, e.getItemName() != null ? e.getItemName() : "", dataStyles[isAlt ? 1 : 0]);
 
             double amt = e.getAmount() != null ? e.getAmount().doubleValue() : 0;
@@ -580,7 +582,6 @@ public class ReportServlet extends HttpServlet {
 
         XSSFCellStyle titleStyle = createTitleBarStyle(wb);
         XSSFCellStyle headerStyle = createPremiumHeaderStyle(wb);
-        XSSFCellStyle subtitleStyle = createSubtitleStyle(wb);
         XSSFCellStyle[] dataStyles = {createDataStyle(wb, false), createDataStyle(wb, true)};
         XSSFCellStyle[] currStyles = {createCurrencyDataStyle(wb, false), createCurrencyDataStyle(wb, true)};
         XSSFCellStyle naStyle = createNaStyle(wb);
@@ -596,8 +597,16 @@ public class ReportServlet extends HttpServlet {
         List<Integer> floors = new ArrayList<>(byFloor.keySet());
 
         // Floor label mapping: position-based lettering (A, B, C...)
-        // Floor index within the renter floors determines the letter
         String[] floorLabels = {"पहिला मजला A", "दुसरा मजला B", "तिसरा मजला C", "चौथा मजला D", "पाचवा मजला E"};
+
+        // Distinct floor header colors for better visual separation
+        byte[][] floorColors = {
+            {(byte)0xC4, (byte)0x95, (byte)0x6A},  // Terracotta (Floor A)
+            {(byte)0x7B, (byte)0x9E, (byte)0x6B},  // Sage green (Floor B)
+            {(byte)0x6B, (byte)0x8E, (byte)0xA3},  // Steel blue (Floor C)
+            {(byte)0xA0, (byte)0x7B, (byte)0x9E},  // Mauve (Floor D)
+            {(byte)0xC4, (byte)0x8B, (byte)0x8B},  // Rose (Floor E)
+        };
 
         // Title bar
         int totalCols = 1 + floors.size() * 3;
@@ -609,28 +618,59 @@ public class ReportServlet extends HttpServlet {
 
         sheet.createRow(1);
 
-        // Floor group headers (row 2)
+        // Floor group headers (row 2) — each floor gets its own distinct color
         Row floorHdrRow = sheet.createRow(2);
-        floorHdrRow.setHeightInPoints(22);
-        setCell(floorHdrRow, 0, "", subtitleStyle);
+        floorHdrRow.setHeightInPoints(28);
+        // Room number column header
+        XSSFCellStyle roomColHdrStyle = wb.createCellStyle();
+        roomColHdrStyle.setFillForegroundColor(new XSSFColor(COLOR_TITLE_BG, null));
+        roomColHdrStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        setCell(floorHdrRow, 0, "", roomColHdrStyle);
+
         for (int fi = 0; fi < floors.size(); fi++) {
             int col = 1 + fi * 3;
-            // Use position-based label (fi = 0 → A, fi = 1 → B, etc.)
             String label = fi < floorLabels.length ? floorLabels[fi] : "मजला " + (char)('A' + fi);
-            setCell(floorHdrRow, col, label, subtitleStyle);
-            // Fill remaining sub-columns with subtitle style
-            setCell(floorHdrRow, col + 1, "", subtitleStyle);
-            setCell(floorHdrRow, col + 2, "", subtitleStyle);
+
+            // Create a distinct style for each floor group header
+            byte[] floorColor = fi < floorColors.length ? floorColors[fi] : floorColors[0];
+            XSSFCellStyle floorStyle = wb.createCellStyle();
+            XSSFFont floorFont = wb.createFont();
+            floorFont.setBold(true);
+            floorFont.setFontHeightInPoints((short) 13);
+            floorFont.setFontName("Arial");
+            floorFont.setColor(new XSSFColor(COLOR_WHITE, null));
+            floorStyle.setFont(floorFont);
+            floorStyle.setFillForegroundColor(new XSSFColor(floorColor, null));
+            floorStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            floorStyle.setAlignment(HorizontalAlignment.CENTER);
+            floorStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+            // Thick left border as floor separator
+            floorStyle.setBorderLeft(BorderStyle.THICK);
+            floorStyle.setLeftBorderColor(new XSSFColor(COLOR_TITLE_BG, null));
+
+            setCell(floorHdrRow, col, label, floorStyle);
+            // Sub-columns get same color but no left border
+            XSSFCellStyle floorSubStyle = wb.createCellStyle();
+            floorSubStyle.cloneStyleFrom(floorStyle);
+            floorSubStyle.setBorderLeft(BorderStyle.NONE);
+            setCell(floorHdrRow, col + 1, "", floorSubStyle);
+            setCell(floorHdrRow, col + 2, "", floorSubStyle);
             sheet.addMergedRegion(new CellRangeAddress(2, 2, col, col + 2));
         }
 
-        // Column headers (row 3)
+        // Column headers (row 3) — first column of each floor gets thick left border
         Row colHdrRow = sheet.createRow(3);
         colHdrRow.setHeightInPoints(24);
         setCell(colHdrRow, 0, "रूम नंबर", headerStyle);
         for (int fi = 0; fi < floors.size(); fi++) {
             int base = 1 + fi * 3;
-            setCell(colHdrRow, base, "नाव", headerStyle);
+            // First column of each floor group gets a thick left border
+            XSSFCellStyle hdrWithBorder = wb.createCellStyle();
+            hdrWithBorder.cloneStyleFrom(headerStyle);
+            hdrWithBorder.setBorderLeft(BorderStyle.THICK);
+            hdrWithBorder.setLeftBorderColor(new XSSFColor(COLOR_TITLE_BG, null));
+
+            setCell(colHdrRow, base, "नाव", hdrWithBorder);
             setCell(colHdrRow, base + 1, "रक्कम", headerStyle);
             setCell(colHdrRow, base + 2, "पेमेंट", headerStyle);
         }
@@ -638,6 +678,20 @@ public class ReportServlet extends HttpServlet {
         // Data rows — one per room number from master list
         int dataStart = 4;
         double[] floorTotals = new double[floors.size()];
+
+        // Pre-create border-aware styles for first column of each floor group
+        XSSFCellStyle[] borderDataStyles = new XSSFCellStyle[2];
+        XSSFCellStyle borderNaStyle;
+        for (int i = 0; i < 2; i++) {
+            borderDataStyles[i] = wb.createCellStyle();
+            borderDataStyles[i].cloneStyleFrom(dataStyles[i]);
+            borderDataStyles[i].setBorderLeft(BorderStyle.THICK);
+            borderDataStyles[i].setLeftBorderColor(new XSSFColor(COLOR_TITLE_BG, null));
+        }
+        borderNaStyle = wb.createCellStyle();
+        borderNaStyle.cloneStyleFrom(naStyle);
+        borderNaStyle.setBorderLeft(BorderStyle.THICK);
+        borderNaStyle.setLeftBorderColor(new XSSFColor(COLOR_TITLE_BG, null));
 
         for (int ri = 0; ri < masterRooms.size(); ri++) {
             String rn = masterRooms.get(ri);
@@ -659,15 +713,16 @@ public class ReportServlet extends HttpServlet {
                     }
                 }
 
+                // First column of each floor group uses border-aware style
                 if (match == null) {
                     // Room was deleted / doesn't exist for this floor → NA
-                    setCell(row, base, "NA", naStyle);
+                    setCell(row, base, "NA", borderNaStyle);
                     setCell(row, base + 1, "", naStyle);
                     setCell(row, base + 2, "", naStyle);
                 } else if (match.getResidentName() != null && !match.getResidentName().isBlank()
                         && match.getAmountPaid() != null && match.getAmountPaid().doubleValue() > 0) {
                     // Room exists AND has data filled → show everything
-                    setCell(row, base, match.getResidentName(), dataStyles[isAlt ? 1 : 0]);
+                    setCell(row, base, match.getResidentName(), borderDataStyles[isAlt ? 1 : 0]);
                     double amt = match.getAmountPaid().doubleValue();
                     setCell(row, base + 1, amt, currStyles[isAlt ? 1 : 0]);
                     floorTotals[fi] += amt;
@@ -678,7 +733,7 @@ public class ReportServlet extends HttpServlet {
                     // Room exists but no contribution data yet → leave blank
                     String name = (match.getResidentName() != null && !match.getResidentName().isBlank())
                             ? match.getResidentName() : "";
-                    setCell(row, base, name, dataStyles[isAlt ? 1 : 0]);
+                    setCell(row, base, name, borderDataStyles[isAlt ? 1 : 0]);
                     setCell(row, base + 1, "", dataStyles[isAlt ? 1 : 0]);
                     setCell(row, base + 2, "", dataStyles[isAlt ? 1 : 0]);
                 }
