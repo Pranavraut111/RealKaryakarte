@@ -804,7 +804,7 @@ public class ReportServlet extends HttpServlet {
         // ── INCOME SECTION ──
         Row r3 = sheet.createRow(3);
         r3.setHeightInPoints(22);
-        setCell(r3, 0, "── जमा (Income) ──", subtitleStyle);
+        setCell(r3, 0, "── जमा (Collection) ──", subtitleStyle);
         setCell(r3, 1, "", subtitleStyle);
 
         // Previous Year Balance
@@ -828,7 +828,7 @@ public class ReportServlet extends HttpServlet {
         // Total Income
         Row r7 = sheet.createRow(7);
         r7.setHeightInPoints(26);
-        setCell(r7, 0, "एकूण जमा (Total Income)", totalLabelStyle);
+        setCell(r7, 0, "एकूण जमा (Total Collection)", totalLabelStyle);
         setCell(r7, 1, previousBalance + totalVargani, totalValueStyle);
 
         // Spacer
