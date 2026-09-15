@@ -69,12 +69,16 @@ public class ReportServlet extends HttpServlet {
                     ? mandal.getPreviousBalance().doubleValue() : 0;
 
             try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+                // Fetch raw data for both sheets and karyakarta balance computation
+                List<Contribution> contributions = contributionDao.findAll(mandalId, null, null, null, null);
+                List<Expense> expenses = expenseDao.findAll(mandalId);
+
                 // Create data sheets first to compute totals
                 Sheet contribSheet = workbook.createSheet("वर्गणी (Contributions)");
-                double totalVargani = createContributionsSheet(workbook, contribSheet, mandalId);
+                double totalVargani = createContributionsSheet(workbook, contribSheet, contributions);
 
                 Sheet expenseSheet = workbook.createSheet("खर्च (Expenses)");
-                double totalKharch = createExpensesSheet(workbook, expenseSheet, mandalId);
+                double totalKharch = createExpensesSheet(workbook, expenseSheet, expenses);
 
                 double[] roomTotals = createRoomTrackerSheets(workbook, mandalId);
                 // roomTotals = [ownerCollected, renterCollected]
@@ -83,7 +87,7 @@ public class ReportServlet extends HttpServlet {
                 Sheet summarySheet = workbook.createSheet("जमा खर्च");
                 workbook.setSheetOrder("जमा खर्च", 0);
                 createSummarySheet(workbook, summarySheet, totalVargani, totalKharch,
-                        roomTotals[0], roomTotals[1], previousBalance);
+                        roomTotals[0], roomTotals[1], previousBalance, contributions, expenses);
 
                 workbook.write(resp.getOutputStream());
             }
@@ -287,8 +291,7 @@ public class ReportServlet extends HttpServlet {
     //  CONTRIBUTIONS SHEET
     // ═══════════════════════════════════════════════════════════════════════
 
-    private double createContributionsSheet(XSSFWorkbook wb, Sheet sheet, Long mandalId) throws SQLException {
-        List<Contribution> contributions = contributionDao.findAll(mandalId, null, null, null, null);
+    private double createContributionsSheet(XSSFWorkbook wb, Sheet sheet, List<Contribution> contributions) {
         Collections.reverse(contributions);
 
         // Pre-create styles (to avoid creating too many)
@@ -375,8 +378,7 @@ public class ReportServlet extends HttpServlet {
     //  EXPENSES SHEET
     // ═══════════════════════════════════════════════════════════════════════
 
-    private double createExpensesSheet(XSSFWorkbook wb, Sheet sheet, Long mandalId) throws SQLException {
-        List<Expense> expenses = expenseDao.findAll(mandalId);
+    private double createExpensesSheet(XSSFWorkbook wb, Sheet sheet, List<Expense> expenses) {
         Collections.reverse(expenses);
 
         XSSFCellStyle titleStyle = createTitleBarStyle(wb);
@@ -777,7 +779,8 @@ public class ReportServlet extends HttpServlet {
     // ═══════════════════════════════════════════════════════════════════════
 
     private void createSummarySheet(XSSFWorkbook wb, Sheet sheet, double totalVargani, double totalKharch,
-                                     double ownerCollected, double renterCollected, double previousBalance) {
+                                     double ownerCollected, double renterCollected, double previousBalance,
+                                     List<Contribution> contributions, List<Expense> expenses) {
         XSSFCellStyle titleStyle = createTitleBarStyle(wb);
         XSSFCellStyle headerStyle = createPremiumHeaderStyle(wb);
         XSSFCellStyle subtitleStyle = createSubtitleStyle(wb);
@@ -827,8 +830,8 @@ public class ReportServlet extends HttpServlet {
         Row r0 = sheet.createRow(0);
         r0.setHeightInPoints(36);
         setCell(r0, 0, "जमा खर्च — Financial Summary", titleStyle);
-        setCell(r0, 1, "", titleStyle);
-        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 1));
+        for (int i = 1; i <= 4; i++) setCell(r0, i, "", titleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 4));
 
         sheet.createRow(1);
 
@@ -891,8 +894,99 @@ public class ReportServlet extends HttpServlet {
         setCell(r12, 0, "शिल्लक रक्कम (Balance in Hand)", grandLabelStyle);
         setCell(r12, 1, previousBalance + totalVargani - totalKharch, grandValueStyle);
 
+        // ═══════════════════════════════════════════════════════════════════
+        //  KARYAKARTA BALANCE SECTION
+        // ═══════════════════════════════════════════════════════════════════
+
+        // Compute per-karyakarta: collected (cash/online) and spent
+        // Key = person name, Value = [cashCollected, onlineCollected, totalSpent]
+        Map<String, double[]> karyakartaData = new LinkedHashMap<>();
+
+        for (Contribution c : contributions) {
+            String name = c.getCollectedByName();
+            if (name == null || name.isBlank()) continue;
+            double[] data = karyakartaData.computeIfAbsent(name, k -> new double[3]);
+            double amt = c.getAmount() != null ? c.getAmount().doubleValue() : 0;
+            String pm = c.getPaymentMethod() != null ? c.getPaymentMethod().name() : "";
+            if ("CASH".equals(pm)) {
+                data[0] += amt; // cash collected
+            } else {
+                data[1] += amt; // online collected (UPI, bank transfer, etc.)
+            }
+        }
+
+        for (Expense e : expenses) {
+            String name = e.getPurchasedByName();
+            if (name == null || name.isBlank()) continue;
+            double[] data = karyakartaData.computeIfAbsent(name, k -> new double[3]);
+            double amt = e.getAmount() != null ? e.getAmount().doubleValue() : 0;
+            data[2] += amt; // total spent
+        }
+
+        // Only show if there's data
+        if (!karyakartaData.isEmpty()) {
+            int rowIdx = 14;
+
+            // Section title
+            Row secTitle = sheet.createRow(rowIdx++);
+            secTitle.setHeightInPoints(30);
+            setCell(secTitle, 0, "कार्यकर्ता शिल्लक — Karyakarta Balance", titleStyle);
+            for (int i = 1; i <= 4; i++) setCell(secTitle, i, "", titleStyle);
+            sheet.addMergedRegion(new CellRangeAddress(rowIdx - 1, rowIdx - 1, 0, 4));
+
+            rowIdx++; // spacer
+
+            // Table headers
+            Row kHdr = sheet.createRow(rowIdx++);
+            kHdr.setHeightInPoints(24);
+            setCell(kHdr, 0, "कार्यकर्ता (Name)", headerStyle);
+            setCell(kHdr, 1, "रोख जमा (Cash)", headerStyle);
+            setCell(kHdr, 2, "ऑनलाइन जमा (Online)", headerStyle);
+            setCell(kHdr, 3, "खर्च केला (Spent)", headerStyle);
+            setCell(kHdr, 4, "अपेक्षित शिल्लक (Expected Balance)", headerStyle);
+
+            // Data rows
+            int idx = 0;
+            for (Map.Entry<String, double[]> entry : karyakartaData.entrySet()) {
+                boolean isAlt = (idx % 2 == 1);
+                XSSFCellStyle lbl = isAlt ? altLabelStyle : labelStyle;
+                XSSFCellStyle val = isAlt ? altValueStyle : valueStyle;
+
+                Row kRow = sheet.createRow(rowIdx++);
+                kRow.setHeightInPoints(22);
+                double[] d = entry.getValue();
+                double cashCollected = d[0];
+                double onlineCollected = d[1];
+                double totalSpent = d[2];
+                double expectedBalance = cashCollected + onlineCollected - totalSpent;
+
+                setCell(kRow, 0, entry.getKey(), lbl);
+                setCell(kRow, 1, cashCollected, val);
+                setCell(kRow, 2, onlineCollected, val);
+                setCell(kRow, 3, totalSpent, val);
+
+                // Color the balance: green if positive, orange if negative
+                if (expectedBalance >= 0) {
+                    XSSFCellStyle balStyle = createStatusPaidStyle(wb);
+                    DataFormat fmt = wb.createDataFormat();
+                    balStyle.setDataFormat(fmt.getFormat("#,##0.00"));
+                    setCell(kRow, 4, expectedBalance, balStyle);
+                } else {
+                    XSSFCellStyle balStyle = createStatusPendingStyle(wb);
+                    DataFormat fmt = wb.createDataFormat();
+                    balStyle.setDataFormat(fmt.getFormat("#,##0.00"));
+                    setCell(kRow, 4, expectedBalance, balStyle);
+                }
+
+                idx++;
+            }
+        }
+
         // Column widths
         sheet.setColumnWidth(0, 14000);
         sheet.setColumnWidth(1, 5500);
+        sheet.setColumnWidth(2, 5500);
+        sheet.setColumnWidth(3, 5500);
+        sheet.setColumnWidth(4, 6500);
     }
 }
