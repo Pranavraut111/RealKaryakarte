@@ -859,30 +859,30 @@ public class ReportServlet extends HttpServlet {
         // ═══════════════════════════════════════════════════════════════════
 
         // Compute per-karyakarta: collected (cash/online) and spent
-        // Key = userId, Value = [name, cashCollected, onlineCollected, totalSpent]
-        Map<Long, Object[]> karyakartaData = new LinkedHashMap<>();
+        // Key = trimmed person name, Value = [cashCollected, onlineCollected, totalSpent]
+        Map<String, double[]> karyakartaData = new LinkedHashMap<>();
 
         for (Contribution c : contributions) {
-            Long userId = c.getCollectedBy();
             String name = c.getCollectedByName();
-            if (userId == null || name == null || name.isBlank()) continue;
-            Object[] data = karyakartaData.computeIfAbsent(userId, k -> new Object[]{name, 0.0, 0.0, 0.0});
+            if (name == null || name.isBlank()) continue;
+            name = name.trim();
+            double[] data = karyakartaData.computeIfAbsent(name, k -> new double[3]);
             double amt = c.getAmount() != null ? c.getAmount().doubleValue() : 0;
             String pm = c.getPaymentMethod() != null ? c.getPaymentMethod().name() : "";
             if ("CASH".equals(pm)) {
-                data[1] = (double) data[1] + amt; // cash collected
+                data[0] += amt; // cash collected
             } else {
-                data[2] = (double) data[2] + amt; // online collected (UPI, bank transfer, etc.)
+                data[1] += amt; // online collected (UPI, bank transfer, etc.)
             }
         }
 
         for (Expense e : expenses) {
-            Long userId = e.getPurchasedBy();
             String name = e.getPurchasedByName();
-            if (userId == null || name == null || name.isBlank()) continue;
-            Object[] data = karyakartaData.computeIfAbsent(userId, k -> new Object[]{name, 0.0, 0.0, 0.0});
+            if (name == null || name.isBlank()) continue;
+            name = name.trim();
+            double[] data = karyakartaData.computeIfAbsent(name, k -> new double[3]);
             double amt = e.getAmount() != null ? e.getAmount().doubleValue() : 0;
-            data[3] = (double) data[3] + amt; // total spent
+            data[2] += amt; // total spent
         }
 
         // Only show if there's data
@@ -909,21 +909,20 @@ public class ReportServlet extends HttpServlet {
 
             // Data rows
             int idx = 0;
-            for (Map.Entry<Long, Object[]> entry : karyakartaData.entrySet()) {
+            for (Map.Entry<String, double[]> entry : karyakartaData.entrySet()) {
                 boolean isAlt = (idx % 2 == 1);
                 XSSFCellStyle lbl = isAlt ? altLabelStyle : labelStyle;
                 XSSFCellStyle val = isAlt ? altValueStyle : valueStyle;
 
                 Row kRow = sheet.createRow(rowIdx++);
                 kRow.setHeightInPoints(22);
-                Object[] d = entry.getValue();
-                String personName = (String) d[0];
-                double cashCollected = (double) d[1];
-                double onlineCollected = (double) d[2];
-                double totalSpent = (double) d[3];
+                double[] d = entry.getValue();
+                double cashCollected = d[0];
+                double onlineCollected = d[1];
+                double totalSpent = d[2];
                 double expectedBalance = cashCollected + onlineCollected - totalSpent;
 
-                setCell(kRow, 0, personName, lbl);
+                setCell(kRow, 0, entry.getKey(), lbl);
                 setCell(kRow, 1, cashCollected, val);
                 setCell(kRow, 2, onlineCollected, val);
                 setCell(kRow, 3, totalSpent, val);
