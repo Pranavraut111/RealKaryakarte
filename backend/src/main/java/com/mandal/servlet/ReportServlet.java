@@ -485,9 +485,7 @@ public class ReportServlet extends HttpServlet {
     // ── OWNER SHEET ──────────────────────────────────────────────────────
 
     private double createOwnerSheet(XSSFWorkbook wb, List<SocietyRoom> owners, List<String> sortedRooms) {
-        // The "Room Tracker" sheet was already created in doGet, rename it
-        Sheet sheet = wb.getSheet("Room Tracker");
-        wb.setSheetName(wb.getSheetIndex(sheet), "घरमालक (Owner)");
+        Sheet sheet = wb.createSheet("घरमालक (Owner)");
 
         XSSFCellStyle titleStyle = createTitleBarStyle(wb);
         XSSFCellStyle headerStyle = createPremiumHeaderStyle(wb);
