@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, LogOut, Shield, Check } from "lucide-react";
+import { ChevronRight, LogOut, Shield, Check, FileSpreadsheet, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/context/AuthContext";
 import { useLang } from "@/context/LangContext";
@@ -127,10 +127,16 @@ export default function ProfilePage() {
 
         <button
           onClick={handleExport}
-          className="flex min-h-[52px] w-full items-center justify-between px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent/60"
+          className="group relative flex min-h-[64px] w-full items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-left text-white shadow-lg shadow-orange-500/20 transition-all hover:shadow-xl hover:shadow-orange-500/30 hover:scale-[1.01] active:scale-[0.99]"
         >
-          {t("reportsAndExport")}
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+            <FileSpreadsheet className="h-5 w-5" />
+          </span>
+          <div className="flex-1">
+            <span className="block text-sm font-bold">{t("reportsAndExport")}</span>
+            <span className="block text-[11px] font-medium text-white/70">Download complete Excel report</span>
+          </div>
+          <ChevronRight className="h-5 w-5 text-white/60 transition-transform group-hover:translate-x-0.5" />
         </button>
       </section>
 
