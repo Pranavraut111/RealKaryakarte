@@ -116,7 +116,7 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="surface-lift mt-4 divide-y divide-border overflow-hidden rounded-2xl">
+      <section className="surface-lift mt-4 overflow-hidden rounded-2xl">
         <button
           onClick={() => navigate("/members")}
           className="flex min-h-[52px] w-full items-center justify-between px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent/60"
@@ -124,19 +124,16 @@ export default function ProfilePage() {
           {t("membersAndRoles")}
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </button>
+      </section>
 
+      <section className="mt-4">
         <button
           onClick={handleExport}
-          className="group relative flex min-h-[64px] w-full items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-left text-white shadow-lg shadow-orange-500/20 transition-all hover:shadow-xl hover:shadow-orange-500/30 hover:scale-[1.01] active:scale-[0.99]"
+          className="accent-gradient group flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.99]"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-            <FileSpreadsheet className="h-5 w-5" />
-          </span>
-          <div className="flex-1">
-            <span className="block text-sm font-bold">{t("reportsAndExport")}</span>
-            <span className="block text-[11px] font-medium text-white/70">Download complete Excel report</span>
-          </div>
-          <ChevronRight className="h-5 w-5 text-white/60 transition-transform group-hover:translate-x-0.5" />
+          <FileSpreadsheet className="h-5 w-5" />
+          <span className="flex-1 text-sm font-semibold">{t("reportsAndExport")}</span>
+          <ChevronRight className="h-4 w-4 text-white/60" />
         </button>
       </section>
 
