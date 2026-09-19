@@ -142,6 +142,25 @@ public class SocietyRoomDao {
         return null;
     }
 
+    /**
+     * When a contribution's member_name is edited, sync that name
+     * to any society_room linked via contribution_id.
+     */
+    public int updateResidentNameByContributionId(Long contributionId, String newName, Long mandalId) throws SQLException {
+        String sql = """
+            UPDATE society_rooms
+            SET resident_name = ?, updated_at = now()
+            WHERE contribution_id = ? AND mandal_id = ?
+            """;
+        try (Connection conn = DbConnectionManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newName);
+            ps.setLong(2, contributionId);
+            ps.setLong(3, mandalId);
+            return ps.executeUpdate();
+        }
+    }
+
     public boolean delete(Long id, Long mandalId) throws SQLException {
         String sql = "DELETE FROM society_rooms WHERE id = ? AND mandal_id = ?";
         try (Connection conn = DbConnectionManager.getConnection();

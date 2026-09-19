@@ -223,6 +223,18 @@ public class ContributionService {
             // Then link to the new room (if room info is provided)
             syncRoomFromContribution(req.getRoomNumber(), req.getFloorNumber(),
                     saved, userId, mandalId);
+
+            // If memberName was edited, also update the resident_name
+            // in all linked society_rooms records
+            if (req.getMemberName() != null) {
+                try {
+                    roomDao.updateResidentNameByContributionId(
+                            saved.getId(), saved.getMemberName(), mandalId);
+                } catch (Exception e) {
+                    // Non-critical — don't fail the edit
+                    System.err.println("Failed to sync room name: " + e.getMessage());
+                }
+            }
         }
 
         return saved;
