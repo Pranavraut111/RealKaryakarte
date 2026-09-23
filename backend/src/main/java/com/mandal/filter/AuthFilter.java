@@ -69,11 +69,16 @@ public class AuthFilter implements Filter {
 
         // Enforce password setup for Karyakarta/Admin
         if (!"MEMBER".equals(userRole)) {
-            String hash = com.mandal.util.PasswordStore.getPassword(userId);
-            if (hash == null || hash.isBlank()) {
-                System.err.println("[AuthFilter] BLOCKED userId=" + userId + " missing password setup.");
-                JsonUtil.writeError(response, 403, "PASSWORD_REQUIRED");
-                return;
+            try {
+                String hash = com.mandal.util.PasswordStore.getPassword(userId);
+                if (hash == null || hash.isBlank()) {
+                    System.err.println("[AuthFilter] BLOCKED userId=" + userId + " missing password setup.");
+                    JsonUtil.writeError(response, 403, "PASSWORD_REQUIRED");
+                    return;
+                }
+            } catch (Exception e) {
+                // DB error on cold start — don't block the user
+                System.err.println("[AuthFilter] Could not verify password for userId=" + userId + ": " + e.getMessage());
             }
         }
 

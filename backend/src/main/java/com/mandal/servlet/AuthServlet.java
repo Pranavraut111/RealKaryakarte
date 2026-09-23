@@ -108,8 +108,14 @@ public class AuthServlet extends HttpServlet {
         // Check if this karyakarta needs to set a password
         boolean needsPassword = false;
         if (!"MEMBER".equals(user.getRole().name())) {
-            String hash = PasswordStore.getPassword(user.getId());
-            needsPassword = (hash == null || hash.isBlank());
+            try {
+                String hash = PasswordStore.getPassword(user.getId());
+                needsPassword = (hash == null || hash.isBlank());
+            } catch (Exception e) {
+                // DB error — don't falsely show "Set Password"
+                System.err.println("[Auth] Could not check password for user " + user.getId() + ": " + e.getMessage());
+                needsPassword = false;
+            }
         }
 
         Map<String, Object> data = Map.of(
@@ -169,8 +175,14 @@ public class AuthServlet extends HttpServlet {
         // Check if this user was previously promoted (needs password)
         boolean needsPassword = false;
         if (!"MEMBER".equals(user.getRole().name())) {
-            String hash = PasswordStore.getPassword(user.getId());
-            needsPassword = (hash == null || hash.isBlank());
+            try {
+                String hash = PasswordStore.getPassword(user.getId());
+                needsPassword = (hash == null || hash.isBlank());
+            } catch (Exception e) {
+                // DB error — don't falsely show "Set Password"
+                System.err.println("[Auth] Could not check password for user " + user.getId() + ": " + e.getMessage());
+                needsPassword = false;
+            }
         }
 
         Map<String, Object> data = new java.util.HashMap<>();

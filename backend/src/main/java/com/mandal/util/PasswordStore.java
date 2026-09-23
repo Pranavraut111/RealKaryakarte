@@ -3,6 +3,7 @@ package com.mandal.util;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 
 /**
  * Database-backed password hash store.
@@ -10,19 +11,22 @@ import java.sql.ResultSet;
  */
 public class PasswordStore {
 
-    public static void setPassword(Long userId, String hash) {
+    public static void setPassword(Long userId, String hash) throws SQLException {
         String sql = "UPDATE users SET password_hash = ? WHERE id = ?";
         try (Connection conn = DbConnectionManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, hash);
             ps.setLong(2, userId);
             ps.executeUpdate();
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
-    public static String getPassword(Long userId) {
+    /**
+     * Returns the password hash, or null if no password is set.
+     * Throws SQLException if the DB is unreachable — this prevents
+     * false "needsPassword = true" on cold starts.
+     */
+    public static String getPassword(Long userId) throws SQLException {
         String sql = "SELECT password_hash FROM users WHERE id = ?";
         try (Connection conn = DbConnectionManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -32,8 +36,6 @@ public class PasswordStore {
                     return rs.getString("password_hash");
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
         return null;
     }
